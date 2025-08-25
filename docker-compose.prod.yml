@@ -1,0 +1,164 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: mercurio-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mercurio
+      POSTGRES_USER: mercurio_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    networks:
+      - mercurio_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mercurio_user -d mercurio"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=100
+      -c shared_buffers=128MB
+      -c effective_cache_size=256MB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+
+  # Mercurio API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mercurio-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://mercurio_user:${POSTGRES_PASSWORD}@postgres:5432/mercurio?schema=public&connection_limit=20&pool_timeout=20
+      
+      # Encryption secrets - MUST be changed for production!
+      ENCRYPTION_KEK_SECRET: ${ENCRYPTION_KEK_SECRET}
+      EMAIL_DEK_SECRET: ${EMAIL_DEK_SECRET}
+      PHONE_DEK_SECRET: ${PHONE_DEK_SECRET}
+      EMAIL_FINGERPRINT_SECRET: ${EMAIL_FINGERPRINT_SECRET}
+      PHONE_FINGERPRINT_SECRET: ${PHONE_FINGERPRINT_SECRET}
+      ENCRYPTION_KEY_VERSION: "1"
+      
+      # Optional Redis configuration
+      REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      REDIS_URL: redis://redis:6379
+      
+      # API Configuration
+      API_KEY_CACHE_TTL: "300000"
+      LOG_LEVEL: info
+      
+      # CORS (adjust for your domain)
+      CORS_ORIGIN: "*"
+      CORS_CREDENTIALS: "true"
+      
+      # Performance
+      NODE_OPTIONS: "--max-old-space-size=512"
+      
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - mercurio_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+
+  # Redis for rate limiting (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: mercurio-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    volumes:
+      - redis_data:/data
+    networks:
+      - mercurio_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  # Nginx reverse proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: mercurio-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - mercurio_network
+    depends_on:
+      - api
+    profiles:
+      - nginx
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 32M
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  mercurio_network:
+    driver: bridge
+    internal: false  # Set to true if you want internal-only network

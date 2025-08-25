@@ -1,0 +1,267 @@
+// Prisma schema for Mercurio API
+// Following BIGINT ID strategy with external prefixes (tn_, ws_, etc.)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Core tenancy tables
+model Tenant {
+  id            BigInt         @id @default(autoincrement())
+  name          String         @db.VarChar(255)
+  status        String         @default("active") @db.VarChar(50)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  
+  workspaces    Workspace[]
+  visitors      Visitor[]
+  leads         Lead[]
+  identityLinks IdentityLink[]
+  sessions      Session[]
+  events        Event[]
+  funnels       Funnel[]
+
+  @@map("tenant")
+}
+
+model Workspace {
+  id            BigInt         @id @default(autoincrement())
+  tenantId      BigInt         @map("tenant_id")
+  name          String         @db.VarChar(255)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  apiKeys       ApiKey[]
+  visitors      Visitor[]
+  leads         Lead[]
+  identityLinks IdentityLink[]
+  sessions      Session[]
+  events        Event[]
+  funnels       Funnel[]
+
+  @@index([tenantId])
+  @@map("workspace")
+}
+
+model ApiKey {
+  id          BigInt    @id @default(autoincrement())
+  workspaceId BigInt    @map("workspace_id")
+  name        String    @db.VarChar(255)
+  keyHash     String    @map("key_hash") @db.VarChar(255)
+  scopes      Json      @default("[]")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  lastUsedAt  DateTime? @map("last_used_at")
+  revokedAt   DateTime? @map("revoked_at")
+  
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("api_key")
+}
+
+// Identity system tables
+model Visitor {
+  anonymousId   String    @id @map("anonymous_id") @db.VarChar(50) // client-generated: a_xxxxx
+  tenantId      BigInt    @map("tenant_id")
+  workspaceId   BigInt    @map("workspace_id")
+  firstSeenAt   DateTime  @default(now()) @map("first_seen_at")
+  lastSeenAt    DateTime  @default(now()) @map("last_seen_at")
+  firstUtm      Json?     @map("first_utm")
+  lastUtm       Json?     @map("last_utm")
+  lastDevice    Json?     @map("last_device")
+  lastGeo       Json?     @map("last_geo")
+  
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  identityLinks IdentityLink[]
+  sessions      Session[]
+  events        Event[]
+
+  @@index([tenantId, workspaceId])
+  @@index([tenantId, workspaceId, lastSeenAt])
+  @@map("visitor")
+}
+
+model Lead {
+  id                BigInt    @id @default(autoincrement())
+  tenantId          BigInt    @map("tenant_id")
+  workspaceId       BigInt    @map("workspace_id")
+  emailEnc          String?   @map("email_enc") @db.Text // encrypted
+  emailFingerprint  String?   @map("email_fingerprint") @db.VarChar(64) // HMAC-SHA256 for matching
+  emailKeyVersion   Int?      @default(1) @map("email_key_version") // for key rotation
+  phoneEnc          String?   @map("phone_enc") @db.Text // encrypted
+  phoneFingerprint  String?   @map("phone_fingerprint") @db.VarChar(64) // HMAC-SHA256 for matching
+  phoneKeyVersion   Int?      @default(1) @map("phone_key_version") // for key rotation
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+  
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  identityLinks     IdentityLink[]
+  events            Event[]
+
+  @@index([tenantId, workspaceId])
+  @@index([tenantId, workspaceId, emailFingerprint])
+  @@index([tenantId, workspaceId, phoneFingerprint])
+  @@map("lead")
+}
+
+model IdentityLink {
+  tenantId    BigInt   @map("tenant_id")
+  workspaceId BigInt   @map("workspace_id")
+  anonymousId String   @map("anonymous_id") @db.VarChar(50)
+  leadId      BigInt   @map("lead_id")
+  firstAt     DateTime @default(now()) @map("first_at")
+  lastAt      DateTime @default(now()) @map("last_at")
+  
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  visitor     Visitor  @relation(fields: [anonymousId], references: [anonymousId], onDelete: Cascade)
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, workspaceId, anonymousId, leadId])
+  @@index([tenantId, workspaceId, anonymousId])
+  @@index([tenantId, workspaceId, leadId])
+  @@map("identity_link")
+}
+
+// Events & Sessions tables
+model Session {
+  sessionId   String    @id @map("session_id") @db.VarChar(50) // client-generated: s_xxxxx
+  tenantId    BigInt    @map("tenant_id")
+  workspaceId BigInt    @map("workspace_id")
+  anonymousId String    @map("anonymous_id") @db.VarChar(50)
+  startedAt   DateTime  @default(now()) @map("started_at")
+  endedAt     DateTime? @map("ended_at")
+  userAgent   String?   @map("user_agent") @db.Text
+  
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  visitor     Visitor   @relation(fields: [anonymousId], references: [anonymousId], onDelete: Cascade)
+  events      Event[]
+
+  @@index([tenantId, workspaceId])
+  @@index([tenantId, workspaceId, anonymousId])
+  @@index([tenantId, workspaceId, startedAt])
+  @@map("session")
+}
+
+model Event {
+  id            BigInt   @default(autoincrement())
+  eventId       String?  @map("event_id") @db.VarChar(100) // Client-provided ID for deduplication
+  schemaVersion String   @map("schema_version") @db.VarChar(10)
+  eventName     String   @map("event_name") @db.VarChar(100)
+  timestamp     DateTime
+  tenantId      BigInt   @map("tenant_id")
+  workspaceId   BigInt   @map("workspace_id")
+  anonymousId   String   @map("anonymous_id") @db.VarChar(50)
+  leadId        BigInt?  @map("lead_id")
+  sessionId     String?  @map("session_id") @db.VarChar(50)
+  page          Json?
+  utm           Json?
+  device        Json?
+  geo           Json?
+  props         Json?
+  ingestedAt    DateTime @default(now()) @map("ingested_at")
+  
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  visitor       Visitor  @relation(fields: [anonymousId], references: [anonymousId], onDelete: Cascade)
+  lead          Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  session       Session? @relation(fields: [sessionId], references: [sessionId], onDelete: SetNull)
+
+  // Composite primary key for partitioning
+  @@id([id, tenantId, timestamp])
+  // Primary indexes for event querying patterns
+  @@index([tenantId, workspaceId, timestamp])
+  @@index([tenantId, workspaceId, anonymousId, timestamp])
+  @@index([tenantId, workspaceId, eventName, timestamp])
+  @@index([tenantId, workspaceId, leadId, timestamp])
+  @@index([tenantId, workspaceId, sessionId, timestamp])
+  // Unique constraint for deduplication (only when eventId is provided)
+  @@unique([tenantId, eventId], name: "unique_tenant_event")
+  @@map("event")
+}
+
+// Funnel system tables
+model Funnel {
+  id          BigInt    @id @default(autoincrement())
+  tenantId    BigInt    @map("tenant_id")
+  workspaceId BigInt    @map("workspace_id")
+  name        String    @db.VarChar(255)
+  description String?   @db.Text
+  createdBy   BigInt?   @map("created_by") // user_id when implemented
+  createdAt   DateTime  @default(now()) @map("created_at")
+  archivedAt  DateTime? @map("archived_at")
+  
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  versions    FunnelVersion[]
+  publications FunnelPublication[]
+
+  @@index([tenantId, workspaceId])
+  @@index([tenantId, workspaceId, createdAt])
+  @@map("funnel")
+}
+
+model FunnelVersion {
+  id        BigInt   @id @default(autoincrement())
+  funnelId  BigInt   @map("funnel_id")
+  version   Int
+  state     String   @default("draft") @db.VarChar(20) // draft, published
+  createdBy BigInt?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  funnel    Funnel   @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+  steps     FunnelStep[]
+
+  @@unique([funnelId, version])
+  @@index([funnelId, state])
+  @@map("funnel_version")
+}
+
+model FunnelPublication {
+  id          BigInt   @id @default(autoincrement())
+  funnelId    BigInt   @map("funnel_id")
+  version     Int
+  publishedAt DateTime @default(now()) @map("published_at")
+  windowDays  Int      @default(7) @map("window_days")
+  notes       String?  @db.Text
+  
+  funnel      Funnel   @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+
+  @@index([funnelId, publishedAt])
+  @@map("funnel_publication")
+}
+
+model FunnelStep {
+  id              BigInt    @id @default(autoincrement())
+  funnelVersionId BigInt    @map("funnel_version_id")
+  orderIndex      Int       @map("order_index")
+  type            String    @db.VarChar(20) // start, page, event, decision, conversion
+  label           String    @db.VarChar(255)
+  metadata        Json?
+  
+  funnelVersion   FunnelVersion @relation(fields: [funnelVersionId], references: [id], onDelete: Cascade)
+  matches         FunnelStepMatch[]
+
+  @@unique([funnelVersionId, orderIndex])
+  @@index([funnelVersionId, orderIndex])
+  @@map("funnel_step")
+}
+
+model FunnelStepMatch {
+  id           BigInt     @id @default(autoincrement())
+  funnelStepId BigInt     @map("funnel_step_id")
+  kind         String     @db.VarChar(20) // page, event
+  rules        Json       // { url_match, event_name, prop_filters, etc }
+  
+  funnelStep   FunnelStep @relation(fields: [funnelStepId], references: [id], onDelete: Cascade)
+
+  @@index([funnelStepId])
+  @@map("funnel_step_match")
+}

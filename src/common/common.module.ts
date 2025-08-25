@@ -1,0 +1,43 @@
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { MercurioLogger } from './services/logger.service';
+import { CacheService } from './services/cache.service';
+import { MetricsService } from './services/metrics.service';
+import { EncryptionService } from './services/encryption.service';
+import { RateLimitService } from './services/rate-limit.service';
+import { InitializationService } from './services/initialization.service';
+import { RequestContextMiddleware } from './middleware/request-context.middleware';
+import { ApiKeyGuard } from './auth/api-key.guard';
+import { RateLimitGuard } from './guards/rate-limit.guard';
+import { ApiKeyService } from './auth/api-key.service';
+
+@Module({
+  providers: [
+    MercurioLogger,
+    CacheService,
+    MetricsService,
+    EncryptionService,
+    RateLimitService,
+    InitializationService,
+    ApiKeyService,
+    ApiKeyGuard,
+    RateLimitGuard,
+  ],
+  exports: [
+    MercurioLogger,
+    CacheService,
+    MetricsService,
+    EncryptionService,
+    RateLimitService,
+    InitializationService,
+    ApiKeyService,
+    ApiKeyGuard,
+    RateLimitGuard,
+  ],
+})
+export class CommonModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(RequestContextMiddleware)
+      .forRoutes('*'); // Apply to all routes
+  }
+}
