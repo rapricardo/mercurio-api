@@ -3,9 +3,10 @@ import { HealthController } from './health.controller';
 import { EventsModule } from './events/events.module';
 import { CommonModule } from './common/common.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
-  imports: [CommonModule, EventsModule, MonitoringModule],
+  imports: [CommonModule, EventsModule, MonitoringModule, AnalyticsModule],
   controllers: [HealthController],
   providers: [],
   exports: [],

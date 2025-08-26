@@ -126,6 +126,181 @@ Authorization: Bearer ak_your_api_key
 }
 ```
 
+### Analytics Endpoints
+
+**Overview Metrics**
+```bash
+GET /v1/analytics/overview?period=7d&timezone=UTC
+Authorization: Bearer ak_your_api_key
+
+# Response
+{
+  "period": {
+    "start": "2025-08-19T00:00:00.000Z",
+    "end": "2025-08-26T00:00:00.000Z", 
+    "timezone": "UTC"
+  },
+  "metrics": {
+    "total_events": 15420,
+    "unique_visitors": 2841,
+    "total_sessions": 3105,
+    "conversion_rate": 4.2,
+    "bounce_rate": 32.1,
+    "avg_session_duration": 245.3
+  },
+  "comparisons": {
+    "total_events": {
+      "value": 15420,
+      "change_pct": 12.4,
+      "direction": "up"
+    }
+  }
+}
+```
+
+**Time Series Data**
+```bash
+GET /v1/analytics/timeseries?period=7d&granularity=day&metrics=events,visitors
+Authorization: Bearer ak_your_api_key
+
+# Response
+{
+  "period": { "start": "...", "end": "..." },
+  "data": [
+    {
+      "timestamp": "2025-08-19T00:00:00.000Z",
+      "events": 2104,
+      "visitors": 421
+    },
+    {
+      "timestamp": "2025-08-20T00:00:00.000Z", 
+      "events": 2340,
+      "visitors": 485
+    }
+  ]
+}
+```
+
+**Top Events**
+```bash
+GET /v1/analytics/events/top?period=7d&limit=10
+Authorization: Bearer ak_your_api_key
+
+# Response
+{
+  "total_events": 15420,
+  "events": [
+    {
+      "rank": 1,
+      "event_name": "page_view",
+      "count": 8234,
+      "percentage": 53.4,
+      "unique_visitors": 1842,
+      "trend": { "change_pct": 8.2, "direction": "up" }
+    }
+  ]
+}
+```
+
+**User Analytics** 
+```bash
+GET /v1/analytics/users?period=7d&segment=all
+Authorization: Bearer ak_your_api_key
+
+# Response
+{
+  "summary": {
+    "total_visitors": 2841,
+    "identified_leads": 119,
+    "identification_rate": 4.2,
+    "returning_visitors": 634,
+    "new_visitors": 2207
+  },
+  "activity_levels": [
+    {
+      "level": "high_activity",
+      "description": "10+ events per session",
+      "visitors": 142,
+      "percentage": 5.0
+    }
+  ],
+  "conversion_funnel": {
+    "visitors": 2841,
+    "sessions_created": 3105,
+    "leads_identified": 119
+  }
+}
+```
+
+**Event Details (Paginated)**
+```bash
+GET /v1/analytics/events/details?period=24h&page=1&limit=50&sort_by=timestamp
+Authorization: Bearer ak_your_api_key
+
+# Response
+{
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total_count": 1543,
+    "total_pages": 31,
+    "has_next_page": true
+  },
+  "events": [
+    {
+      "event_id": "evt_12345",
+      "event_name": "page_view",
+      "timestamp": "2025-08-26T10:30:00.000Z",
+      "anonymous_id": "a_visitor_123",
+      "session_id": "s_session_456",
+      "page": { "url": "/dashboard", "title": "Dashboard" },
+      "utm": { "source": "google" },
+      "device": { "type": "desktop" },
+      "geo": { "country": "US" }
+    }
+  ]
+}
+```
+
+**Data Export**
+```bash
+# Request export
+GET /v1/analytics/export?period=30d&dataset=events&format=csv
+Authorization: Bearer ak_your_api_key
+
+# Response
+{
+  "export_id": "exp_1724634000_abc123",
+  "status": "processing",
+  "created_at": "2025-08-26T10:30:00.000Z",
+  "expires_at": "2025-08-27T10:30:00.000Z",
+  "format": "csv"
+}
+
+# Check export status
+GET /v1/analytics/exports/exp_1724634000_abc123
+Authorization: Bearer ak_your_api_key
+
+# Response
+{
+  "export_id": "exp_1724634000_abc123", 
+  "status": "completed",
+  "download_url": "/v1/analytics/exports/exp_1724634000_abc123/download",
+  "created_at": "2025-08-26T10:30:00.000Z",
+  "expires_at": "2025-08-27T10:30:00.000Z"
+}
+```
+
+**Query Parameters:**
+- `period`: `24h`, `7d`, `30d`, or `custom` (requires `start_date` & `end_date`)
+- `timezone`: Any valid timezone (default: `UTC`)
+- `granularity`: `hour`, `day`, `week` (for timeseries)
+- `metrics`: Array of `events`, `visitors`, `sessions`, `conversions`
+- `limit`: Number of results (max varies by endpoint)
+- `page`: Page number for pagination
+- `sort_by`: `timestamp`, `event_name` (for event details)
+- `sort_order`: `asc`, `desc`
+
 ## 🐳 Docker Deployment
 
 ### Development

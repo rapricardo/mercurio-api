@@ -66,6 +66,21 @@ export interface MetricsSnapshot {
     redis_errors: CounterMetric;
   };
   
+  // Analytics metrics
+  analytics: {
+    overview_requests: CounterMetric;
+    timeseries_requests: CounterMetric;
+    top_events_requests: CounterMetric;
+    users_requests: CounterMetric;
+    details_requests: CounterMetric;
+    export_requests: CounterMetric;
+    cache_hits: CounterMetric;
+    cache_misses: CounterMetric;
+    cache_hit_rate: number;
+    query_latency: LatencyMetric;
+    slow_queries: CounterMetric;
+  };
+  
   // Database metrics
   database: {
     queries: CounterMetric;
@@ -217,6 +232,20 @@ export class MetricsService {
         redis_errors: this.getCounterMetric('ratelimit.redis_errors'),
       },
       
+      analytics: {
+        overview_requests: this.getCounterMetric('analytics.overview_requests'),
+        timeseries_requests: this.getCounterMetric('analytics.timeseries_requests'),
+        top_events_requests: this.getCounterMetric('analytics.top_events_requests'),
+        users_requests: this.getCounterMetric('analytics.users_requests'),
+        details_requests: this.getCounterMetric('analytics.details_requests'),
+        export_requests: this.getCounterMetric('analytics.export_requests'),
+        cache_hits: this.getCounterMetric('analytics.cache_hits'),
+        cache_misses: this.getCounterMetric('analytics.cache_misses'),
+        cache_hit_rate: this.calculateAnalyticsCacheHitRate(),
+        query_latency: this.getLatencyMetric('analytics.query_latency'),
+        slow_queries: this.getCounterMetric('analytics.slow_queries'),
+      },
+      
       database: {
         queries: this.getCounterMetric('database.queries'),
         query_latency: this.getLatencyMetric('database.query_latency'),
@@ -255,6 +284,20 @@ export class MetricsService {
     addMetric('mercurio_events_batched_total', snapshot.events.batched.value, 'Total batch events processed');
     addMetric('mercurio_events_identified_total', snapshot.events.identified.value, 'Total identify events processed');
     addMetric('mercurio_events_duplicates_total', snapshot.events.duplicates.value, 'Total duplicate events detected');
+
+    // Analytics metrics
+    addMetric('mercurio_analytics_requests_total', 
+      snapshot.analytics.overview_requests.value + 
+      snapshot.analytics.timeseries_requests.value + 
+      snapshot.analytics.top_events_requests.value + 
+      snapshot.analytics.users_requests.value + 
+      snapshot.analytics.details_requests.value + 
+      snapshot.analytics.export_requests.value, 
+      'Total analytics requests'
+    );
+    addMetric('mercurio_analytics_cache_hit_rate', snapshot.analytics.cache_hit_rate, 'Analytics cache hit rate', 'gauge');
+    addMetric('mercurio_analytics_query_duration_ms', snapshot.analytics.query_latency.p50, 'Analytics query duration P50 in milliseconds', 'gauge');
+    addMetric('mercurio_analytics_slow_queries_total', snapshot.analytics.slow_queries.value, 'Total slow analytics queries');
 
     // API key metrics
     addMetric('mercurio_apikey_validations_total', snapshot.apiKeys.validations.value, 'Total API key validations');
@@ -305,6 +348,15 @@ export class MetricsService {
       'ratelimit.violations.admin',
       'ratelimit.redis_errors',
       'database.queries',
+      'analytics.overview_requests',
+      'analytics.timeseries_requests',
+      'analytics.top_events_requests',
+      'analytics.users_requests',
+      'analytics.details_requests',
+      'analytics.export_requests',
+      'analytics.cache_hits',
+      'analytics.cache_misses',
+      'analytics.slow_queries',
     ];
 
     for (const counter of initialCounters) {
@@ -318,6 +370,7 @@ export class MetricsService {
       'events.processing_latency',
       'encryption.latency',
       'database.query_latency',
+      'analytics.query_latency',
     ];
 
     for (const metric of latencyMetrics) {
@@ -414,6 +467,14 @@ export class MetricsService {
   private calculateCacheHitRate(): number {
     const hits = this.counters.get('apikeys.cache_hits') || 0;
     const misses = this.counters.get('apikeys.cache_misses') || 0;
+    const total = hits + misses;
+    
+    return total > 0 ? (hits / total) * 100 : 0;
+  }
+
+  private calculateAnalyticsCacheHitRate(): number {
+    const hits = this.counters.get('analytics.cache_hits') || 0;
+    const misses = this.counters.get('analytics.cache_misses') || 0;
     const total = hits + misses;
     
     return total > 0 ? (hits / total) * 100 : 0;
