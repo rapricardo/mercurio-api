@@ -17,13 +17,15 @@ model Tenant {
   status        String         @default("active") @db.VarChar(50)
   createdAt     DateTime       @default(now()) @map("created_at")
   
-  workspaces    Workspace[]
-  visitors      Visitor[]
-  leads         Lead[]
-  identityLinks IdentityLink[]
-  sessions      Session[]
-  events        Event[]
-  funnels       Funnel[]
+  workspaces        Workspace[]
+  visitors          Visitor[]
+  leads             Lead[]
+  identityLinks     IdentityLink[]
+  sessions          Session[]
+  events            Event[]
+  funnels           Funnel[]
+  funnelUserStates  FunnelUserState[]
+  userWorkspaceAccess UserWorkspaceAccess[]
 
   @@map("tenant")
 }
@@ -34,14 +36,16 @@ model Workspace {
   name          String         @db.VarChar(255)
   createdAt     DateTime       @default(now()) @map("created_at")
   
-  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  apiKeys       ApiKey[]
-  visitors      Visitor[]
-  leads         Lead[]
-  identityLinks IdentityLink[]
-  sessions      Session[]
-  events        Event[]
-  funnels       Funnel[]
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  apiKeys          ApiKey[]
+  visitors         Visitor[]
+  leads            Lead[]
+  identityLinks    IdentityLink[]
+  sessions         Session[]
+  events           Event[]
+  funnels          Funnel[]
+  funnelUserStates FunnelUserState[]
+  userWorkspaceAccess UserWorkspaceAccess[]
 
   @@index([tenantId])
   @@map("workspace")
@@ -75,11 +79,12 @@ model Visitor {
   lastDevice    Json?     @map("last_device")
   lastGeo       Json?     @map("last_geo")
   
-  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  identityLinks IdentityLink[]
-  sessions      Session[]
-  events        Event[]
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspace        Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  identityLinks    IdentityLink[]
+  sessions         Session[]
+  events           Event[]
+  funnelUserStates FunnelUserState[]
 
   @@index([tenantId, workspaceId])
   @@index([tenantId, workspaceId, lastSeenAt])
@@ -99,10 +104,11 @@ model Lead {
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
   
-  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tenant            Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspace         Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   identityLinks     IdentityLink[]
   events            Event[]
+  funnelUserStates  FunnelUserState[]
 
   @@index([tenantId, workspaceId])
   @@index([tenantId, workspaceId, emailFingerprint])
@@ -198,10 +204,11 @@ model Funnel {
   createdAt   DateTime  @default(now()) @map("created_at")
   archivedAt  DateTime? @map("archived_at")
   
-  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  versions    FunnelVersion[]
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspace    Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  versions     FunnelVersion[]
   publications FunnelPublication[]
+  userStates   FunnelUserState[]
 
   @@index([tenantId, workspaceId])
   @@index([tenantId, workspaceId, createdAt])
@@ -264,4 +271,76 @@ model FunnelStepMatch {
 
   @@index([funnelStepId])
   @@map("funnel_step_match")
+}
+
+// User state tracking for real-time funnel progression
+model FunnelUserState {
+  id              BigInt    @id @default(autoincrement())
+  tenantId        BigInt    @map("tenant_id")
+  workspaceId     BigInt    @map("workspace_id")
+  funnelId        BigInt    @map("funnel_id")
+  funnelVersionId BigInt    @map("funnel_version_id")
+  anonymousId     String    @map("anonymous_id") @db.VarChar(50)
+  leadId          BigInt?   @map("lead_id")
+  currentStepId   BigInt?   @map("current_step_id")
+  currentStepIndex Int?     @map("current_step_index")
+  enteredAt       DateTime  @default(now()) @map("entered_at")
+  lastActivityAt  DateTime  @default(now()) @map("last_activity_at")
+  completedAt     DateTime? @map("completed_at")
+  exitedAt        DateTime? @map("exited_at")
+  exitStepIndex   Int?      @map("exit_step_index")
+  conversionTime  Int?      @map("conversion_time_seconds")
+  status          String    @default("active") @db.VarChar(20) // active, completed, exited, abandoned
+  metadata        Json?     // Additional tracking data
+  
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  funnel          Funnel    @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+  visitor         Visitor   @relation(fields: [anonymousId], references: [anonymousId], onDelete: Cascade)
+  lead            Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  // Unique constraint to ensure one active state per user per funnel
+  @@unique([tenantId, workspaceId, funnelId, anonymousId], name: "unique_user_funnel_state")
+  @@index([tenantId, workspaceId, funnelId])
+  @@index([tenantId, workspaceId, anonymousId])
+  @@index([tenantId, workspaceId, funnelId, status])
+  @@index([tenantId, workspaceId, funnelId, lastActivityAt])
+  @@index([funnelId, currentStepIndex, status])
+  @@map("funnel_user_state")
+}
+
+// User management tables for Supabase integration
+model UserProfile {
+  id              String    @id // Supabase UUID
+  email           String    @unique
+  name            String?   @db.VarChar(255)
+  avatarUrl       String?   @map("avatar_url") @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+  lastLoginAt     DateTime? @map("last_login_at")
+  
+  workspaceAccess UserWorkspaceAccess[]
+
+  @@map("user_profile")
+}
+
+model UserWorkspaceAccess {
+  id          BigInt   @id @default(autoincrement())
+  userId      String   @map("user_id") // Supabase UUID
+  tenantId    BigInt   @map("tenant_id")
+  workspaceId BigInt   @map("workspace_id")
+  role        String   @default("viewer") @db.VarChar(50) // admin, editor, viewer
+  grantedAt   DateTime @default(now()) @map("granted_at")
+  grantedBy   String?  @map("granted_by") // Supabase UUID of granter
+  revokedAt   DateTime? @map("revoked_at")
+  
+  user        UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId, workspaceId], name: "unique_user_workspace")
+  @@index([userId])
+  @@index([tenantId, workspaceId])
+  @@index([tenantId, workspaceId, role])
+  @@map("user_workspace_access")
 }

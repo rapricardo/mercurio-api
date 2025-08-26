@@ -10,10 +10,11 @@ import {
   PayloadTooLargeException,
 } from '@nestjs/common'
 import { FastifyRequest } from 'fastify'
-import { ApiKeyGuard, RequireScopes } from '../../common/auth/api-key.guard'
+import { HybridAuthGuard } from '../../common/auth/hybrid-auth.guard'
 import { RateLimitGuard, RateLimit } from '../../common/guards/rate-limit.guard'
 import { CurrentTenant } from '../../common/context/tenant-context.provider'
-import { TenantContext } from '../../common/types/tenant-context.type'
+import { HybridTenantContext } from '../../common/types/tenant-context.type'
+import { ApiKeyService } from '../../common/auth/api-key.service'
 import { TrackEventDto, BatchEventDto, IdentifyEventDto } from '../dto/track-event.dto'
 import { EventResponse, BatchResponse, IdentifyResponse } from '../dto/response.dto'
 import { EventProcessorService } from '../services/event-processor.service'
@@ -22,7 +23,7 @@ import { MercurioLogger } from '../../common/services/logger.service'
 import { REQUEST_CONTEXT_KEY } from '../../common/middleware/request-context.middleware'
 
 @Controller('v1/events')
-@UseGuards(ApiKeyGuard, RateLimitGuard)
+@UseGuards(HybridAuthGuard, RateLimitGuard)
 export class EventsController {
   private readonly MAX_BATCH_SIZE = 50           // Sprint 1: Reduced from 1000
   private readonly MAX_PAYLOAD_SIZE = 256 * 1024  // Sprint 1: 256KB (reduced from 1MB)
@@ -31,17 +32,26 @@ export class EventsController {
     private readonly eventProcessor: EventProcessorService,
     private readonly enrichment: EnrichmentService,
     private readonly logger: MercurioLogger,
+    private readonly apiKeyService: ApiKeyService,
   ) {}
 
   @Post('track')
   @HttpCode(HttpStatus.OK)
-  @RequireScopes(['write', 'events:write'])
   @RateLimit({ endpoint: 'events' })
   async trackEvent(
     @Body() trackEvent: TrackEventDto,
-    @CurrentTenant() tenant: TenantContext,
+    @CurrentTenant() tenant: HybridTenantContext,
     @Req() request: FastifyRequest,
   ): Promise<EventResponse> {
+    // Validate write permissions
+    if (!this.apiKeyService.canWriteEvents(tenant.scopes)) {
+      throw new BadRequestException({
+        error: {
+          code: 'insufficient_permissions',
+          message: 'Write permission required for event tracking',
+        },
+      })
+    }
     const requestContext = request[REQUEST_CONTEXT_KEY]
     // Validate payload size
     const payloadSize = JSON.stringify(trackEvent).length
@@ -125,13 +135,21 @@ export class EventsController {
 
   @Post('batch')
   @HttpCode(HttpStatus.OK)
-  @RequireScopes(['write', 'events:write'])
   @RateLimit({ endpoint: 'events' })
   async batchEvents(
     @Body() batchDto: BatchEventDto,
-    @CurrentTenant() tenant: TenantContext,
+    @CurrentTenant() tenant: HybridTenantContext,
     @Req() request: FastifyRequest,
   ): Promise<BatchResponse> {
+    // Validate write permissions
+    if (!this.apiKeyService.canWriteEvents(tenant.scopes)) {
+      throw new BadRequestException({
+        error: {
+          code: 'insufficient_permissions',
+          message: 'Write permission required for batch events',
+        },
+      })
+    }
     const { events } = batchDto
     const requestContext = request[REQUEST_CONTEXT_KEY]
 
@@ -224,13 +242,21 @@ export class EventsController {
 
   @Post('identify')
   @HttpCode(HttpStatus.OK)
-  @RequireScopes(['write', 'events:write'])
   @RateLimit({ endpoint: 'events' })
   async identifyUser(
     @Body() identifyDto: IdentifyEventDto,
-    @CurrentTenant() tenant: TenantContext,
+    @CurrentTenant() tenant: HybridTenantContext,
     @Req() request: FastifyRequest,
   ): Promise<IdentifyResponse> {
+    // Validate write permissions
+    if (!this.apiKeyService.canWriteEvents(tenant.scopes)) {
+      throw new BadRequestException({
+        error: {
+          code: 'insufficient_permissions',
+          message: 'Write permission required for user identification',
+        },
+      })
+    }
     const requestContext = request[REQUEST_CONTEXT_KEY]
     // Validate payload size
     const payloadSize = JSON.stringify(identifyDto).length

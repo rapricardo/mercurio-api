@@ -9,9 +9,14 @@ import { RequestContextMiddleware } from './middleware/request-context.middlewar
 import { ApiKeyGuard } from './auth/api-key.guard';
 import { RateLimitGuard } from './guards/rate-limit.guard';
 import { ApiKeyService } from './auth/api-key.service';
+import { SupabaseAuthService } from './auth/supabase-auth.service';
+import { UserMappingService } from './auth/user-mapping.service';
+import { HybridAuthGuard } from './auth/hybrid-auth.guard';
+import { UserManagementController } from './auth/user-management.controller';
 import { PrismaService } from '../prisma.service';
 
 @Module({
+  controllers: [UserManagementController],
   providers: [
     PrismaService,
     MercurioLogger,
@@ -21,7 +26,10 @@ import { PrismaService } from '../prisma.service';
     RateLimitService,
     InitializationService,
     ApiKeyService,
+    SupabaseAuthService,
+    UserMappingService,
     ApiKeyGuard,
+    HybridAuthGuard,
     RateLimitGuard,
   ],
   exports: [
@@ -33,7 +41,10 @@ import { PrismaService } from '../prisma.service';
     RateLimitService,
     InitializationService,
     ApiKeyService,
+    SupabaseAuthService,
+    UserMappingService,
     ApiKeyGuard,
+    HybridAuthGuard,
     RateLimitGuard,
   ],
 })

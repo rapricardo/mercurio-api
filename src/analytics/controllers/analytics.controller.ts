@@ -9,9 +9,10 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { AnalyticsService } from '../services/analytics.service';
-import { ApiKeyGuard } from '../../common/auth/api-key.guard';
+import { HybridAuthGuard } from '../../common/auth/hybrid-auth.guard';
 import { CurrentTenant } from '../../common/context/tenant-context.provider';
-import type { TenantContext } from '../../common/types/tenant-context.type';
+import type { HybridTenantContext } from '../../common/types/tenant-context.type';
+import { ApiKeyService } from '../../common/auth/api-key.service';
 import {
   PeriodQueryDto,
   TimeSeriesQueryDto,
@@ -31,13 +32,14 @@ import {
 import { MetricsService } from '../../common/services/metrics.service';
 
 @Controller('v1/analytics')
-@UseGuards(ApiKeyGuard)
+@UseGuards(HybridAuthGuard)
 export class AnalyticsController {
   private readonly logger = new Logger(AnalyticsController.name);
 
   constructor(
     private readonly analyticsService: AnalyticsService,
     private readonly metrics: MetricsService,
+    private readonly apiKeyService: ApiKeyService,
   ) {}
 
   /**
@@ -94,8 +96,12 @@ export class AnalyticsController {
   @HttpCode(HttpStatus.OK)
   async getOverview(
     @Query() query: PeriodQueryDto,
-    @CurrentTenant() tenant: TenantContext,
+    @CurrentTenant() tenant: HybridTenantContext,
   ): Promise<OverviewMetricsResponse> {
+    // Validate read permissions
+    if (!this.apiKeyService.canReadEvents(tenant.scopes)) {
+      throw new Error('Read permission required for analytics overview');
+    }
     const startTime = Date.now();
 
     try {
@@ -142,8 +148,12 @@ export class AnalyticsController {
   @HttpCode(HttpStatus.OK)
   async getTimeSeries(
     @Query() query: TimeSeriesQueryDto,
-    @CurrentTenant() tenant: TenantContext,
+    @CurrentTenant() tenant: HybridTenantContext,
   ): Promise<TimeSeriesResponse> {
+    // Validate read permissions
+    if (!this.apiKeyService.canReadEvents(tenant.scopes)) {
+      throw new Error('Read permission required for time-series data');
+    }
     const startTime = Date.now();
 
     try {
@@ -192,8 +202,12 @@ export class AnalyticsController {
   @HttpCode(HttpStatus.OK)
   async getTopEvents(
     @Query() query: TopEventsQueryDto,
-    @CurrentTenant() tenant: TenantContext,
+    @CurrentTenant() tenant: HybridTenantContext,
   ): Promise<TopEventsResponse> {
+    // Validate read permissions
+    if (!this.apiKeyService.canReadEvents(tenant.scopes)) {
+      throw new Error('Read permission required for top events');
+    }
     const startTime = Date.now();
 
     try {
@@ -241,8 +255,12 @@ export class AnalyticsController {
   @HttpCode(HttpStatus.OK)
   async getUserAnalytics(
     @Query() query: UserAnalyticsQueryDto,
-    @CurrentTenant() tenant: TenantContext,
+    @CurrentTenant() tenant: HybridTenantContext,
   ): Promise<UserAnalyticsResponse> {
+    // Validate read permissions
+    if (!this.apiKeyService.canReadEvents(tenant.scopes)) {
+      throw new Error('Read permission required for user analytics');
+    }
     const startTime = Date.now();
 
     try {
@@ -290,8 +308,12 @@ export class AnalyticsController {
   @HttpCode(HttpStatus.OK)
   async getEventDetails(
     @Query() query: EventDetailsQueryDto,
-    @CurrentTenant() tenant: TenantContext,
+    @CurrentTenant() tenant: HybridTenantContext,
   ): Promise<EventDetailsResponse> {
+    // Validate read permissions
+    if (!this.apiKeyService.canReadEvents(tenant.scopes)) {
+      throw new Error('Read permission required for event details');
+    }
     const startTime = Date.now();
 
     try {
@@ -340,8 +362,12 @@ export class AnalyticsController {
   @HttpCode(HttpStatus.ACCEPTED)
   async exportData(
     @Query() query: ExportRequestDto,
-    @CurrentTenant() tenant: TenantContext,
+    @CurrentTenant() tenant: HybridTenantContext,
   ): Promise<ExportResponse> {
+    // Validate read permissions
+    if (!this.apiKeyService.canReadEvents(tenant.scopes)) {
+      throw new Error('Read permission required for data export');
+    }
     const startTime = Date.now();
 
     try {
@@ -390,8 +416,12 @@ export class AnalyticsController {
   @HttpCode(HttpStatus.OK)
   async getExportStatus(
     @Param('exportId') exportId: string,
-    @CurrentTenant() tenant: TenantContext,
+    @CurrentTenant() tenant: HybridTenantContext,
   ): Promise<ExportResponse> {
+    // Validate read permissions
+    if (!this.apiKeyService.canReadEvents(tenant.scopes)) {
+      throw new Error('Read permission required for export status');
+    }
     const startTime = Date.now();
 
     try {

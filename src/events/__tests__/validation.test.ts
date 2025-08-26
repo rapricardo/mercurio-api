@@ -4,7 +4,8 @@ import { EventsController } from '../controllers/events.controller';
 import { EventProcessorService } from '../services/event-processor.service';
 import { EnrichmentService } from '../services/enrichment.service';
 import { MercurioLogger } from '../../common/services/logger.service';
-import { TenantContext } from '../../common/types/tenant-context.type';
+import { HybridTenantContext } from '../../common/types/tenant-context.type';
+import { ApiKeyService } from '../../common/auth/api-key.service';
 import { TrackEventDto, BatchEventDto, IdentifyEventDto } from '../dto/track-event.dto';
 
 describe('Payload Validation', () => {
@@ -13,11 +14,12 @@ describe('Payload Validation', () => {
   let enrichment: EnrichmentService;
   let logger: MercurioLogger;
 
-  const mockTenantContext: TenantContext = {
+  const mockTenantContext: HybridTenantContext = {
     tenantId: BigInt(1),
     workspaceId: BigInt(1),
     apiKeyId: BigInt(1),
     scopes: ['write', 'events:write'],
+    authType: 'api_key',
   };
 
   const mockRequest = {
@@ -62,12 +64,18 @@ describe('Payload Validation', () => {
       debug: jest.fn(),
     };
 
+    const mockApiKeyService = {
+      canWriteEvents: jest.fn().mockReturnValue(true),
+      canReadEvents: jest.fn().mockReturnValue(true),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EventsController],
       providers: [
         { provide: EventProcessorService, useValue: mockEventProcessor },
         { provide: EnrichmentService, useValue: mockEnrichment },
         { provide: MercurioLogger, useValue: mockLogger },
+        { provide: ApiKeyService, useValue: mockApiKeyService },
       ],
     }).compile();
 

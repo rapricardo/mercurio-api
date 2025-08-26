@@ -5,6 +5,27 @@ export interface TenantContext {
   scopes: string[]
 }
 
+export interface HybridTenantContext extends TenantContext {
+  // API Key auth fields (existing)
+  tenantId: bigint
+  workspaceId: bigint
+  apiKeyId: bigint
+  scopes: string[]
+  
+  // Supabase auth fields (new)
+  userId?: string
+  userEmail?: string
+  userRole?: string
+  authType: 'api_key' | 'supabase_jwt'
+  
+  // Workspace access for JWT auth
+  workspaceAccess?: Array<{
+    tenantId: bigint
+    workspaceId: bigint
+    role: string
+  }>
+}
+
 export interface ApiKeyValidationResult {
   isValid: boolean
   tenantId?: bigint
