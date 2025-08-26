@@ -49,11 +49,8 @@ jspm_packages/
 # Yarn Integrity file
 .yarn-integrity
 
-# macOS
-.DS_Store
-
-# Windows
-Thumbs.db
+# macOS (consolidated above)
+# Windows (consolidated above)
 
 # IDE
 .vscode/
@@ -75,3 +72,89 @@ prisma/.env
 
 # Testing
 .jest/
+jest-coverage/
+test-results/
+
+# Export files (temporary)
+/tmp/exports/
+exports/
+downloads/
+*.csv
+*.xlsx
+*.xls
+
+# Editor/IDE specific
+*.sublime-*
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/extensions.json
+
+# OS generated files
+*.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# NPM/Yarn
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# ESLint
+.eslintcache
+
+# Package manager locks (keep package-lock.json)
+yarn.lock
+pnpm-lock.yaml
+
+# TypeScript
+*.tsbuildinfo
+
+# Build artifacts
+*.tgz
+*.tar.gz
+
+# Temporary and backup files
+*~
+*.bak
+*.swp
+*.swo
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Local development
+.local/
+.cache/
+
+# System files
+.fuse_hidden*
+
+# Monitoring/metrics
+prometheus_data/
+grafana_data/
+
+# Security
+*.key
+*.crt
+*.pem
+*.p12
+*.pfx
+private/
+secrets/
+
+# Prisma generated
+# Keep migrations/ directory but ignore the client
+# (prisma client is generated during build)
+
+# Load testing results
+load-test-results/
+performance-reports/

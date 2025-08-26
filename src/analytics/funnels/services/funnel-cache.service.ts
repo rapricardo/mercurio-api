@@ -34,7 +34,7 @@ export class FunnelCacheService {
   /**
    * Generate cache keys for funnel-related data
    */
-  private generateCacheKey(type: string, params: Record<string, any>): string {
+  public generateCacheKey(type: string, params: Record<string, any>): string {
     const keyParts = [
       'funnel',
       type,
@@ -404,5 +404,26 @@ export class FunnelCacheService {
     this.baseCache.clear();
     
     this.logger.warn('All funnel caches cleared');
+  }
+
+  /**
+   * Generic get method for analytics service
+   */
+  async get<T>(key: string): Promise<T | null> {
+    return this.baseCache.get<T>(key);
+  }
+
+  /**
+   * Generic set method for analytics service
+   */
+  async set<T>(key: string, value: T, ttl?: number): Promise<void> {
+    this.baseCache.set(key, value, ttl);
+  }
+
+  /**
+   * Get TTL for specific cache type
+   */
+  getTTL(cacheType: keyof typeof this.cacheTTL): number {
+    return this.cacheTTL[cacheType];
   }
 }

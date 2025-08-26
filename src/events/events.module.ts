@@ -4,9 +4,10 @@ import { EventProcessorService } from './services/event-processor.service'
 import { EnrichmentService } from './services/enrichment.service'
 import { PrismaService } from '../prisma.service'
 import { CommonModule } from '../common/common.module'
+import { FunnelAnalyticsModule } from '../analytics/funnels/funnel-analytics.module'
 
 @Module({
-  imports: [CommonModule],
+  imports: [CommonModule, FunnelAnalyticsModule],
   controllers: [EventsController],
   providers: [
     EventProcessorService,

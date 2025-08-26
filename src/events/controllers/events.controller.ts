@@ -21,6 +21,7 @@ import { EventProcessorService } from '../services/event-processor.service'
 import { EnrichmentService } from '../services/enrichment.service'
 import { MercurioLogger } from '../../common/services/logger.service'
 import { REQUEST_CONTEXT_KEY } from '../../common/middleware/request-context.middleware'
+import { FunnelRealtimeService } from '../../analytics/funnels/services/funnel-realtime.service'
 
 @Controller('v1/events')
 @UseGuards(HybridAuthGuard, RateLimitGuard)
@@ -33,6 +34,7 @@ export class EventsController {
     private readonly enrichment: EnrichmentService,
     private readonly logger: MercurioLogger,
     private readonly apiKeyService: ApiKeyService,
+    private readonly funnelRealtime: FunnelRealtimeService,
   ) {}
 
   @Post('track')
@@ -111,6 +113,17 @@ export class EventsController {
         },
       })
     }
+
+    // Process event for funnels (async, non-blocking)  
+    this.processEventForFunnels(trackEvent, tenant, enrichmentData, result.eventId || '')
+      .catch(error => {
+        this.logger.warn('Funnel processing failed for event', error, {
+          requestId: requestContext?.requestId,
+          tenantId: tenant.tenantId.toString(),
+          workspaceId: tenant.workspaceId.toString(),
+          eventId: result.eventId,
+        })
+      })
 
     // Log successful processing
     this.logger.log('Track event processed successfully', {
@@ -208,6 +221,17 @@ export class EventsController {
 
     // Process batch
     const batchResult = await this.eventProcessor.processBatchEvents(events, tenant, enrichmentData)
+
+    // Process successful events for funnels (async, non-blocking)
+    this.processBatchEventsForFunnels(events, tenant, enrichmentData, batchResult.results)
+      .catch(error => {
+        this.logger.warn('Batch funnel processing failed', error, {
+          requestId: requestContext?.requestId,
+          tenantId: tenant.tenantId.toString(),
+          workspaceId: tenant.workspaceId.toString(),
+          batchSize: events.length,
+        })
+      })
 
     // Transform results to response format
     const results: EventResponse[] = batchResult.results.map((result) => ({
@@ -363,6 +387,96 @@ export class EventsController {
     return {
       accepted: true,
       lead_id: result.leadId,
+    }
+  }
+
+  /**
+   * Process event for funnel analysis (async, non-blocking)
+   */
+  private async processEventForFunnels(
+    trackEvent: TrackEventDto,
+    tenant: HybridTenantContext,
+    enrichmentData: any,
+    eventId: string,
+  ): Promise<void> {
+    try {
+      // Transform to the format expected by FunnelRealtimeService
+      const eventData = {
+        tenant_id: tenant.tenantId.toString(),
+        workspace_id: tenant.workspaceId.toString(),
+        anonymous_id: trackEvent.anonymous_id,
+        lead_id: undefined, // Will be populated if user is identified
+        session_id: trackEvent.session_id || '',
+        event_name: trackEvent.event_name,
+        timestamp: new Date(trackEvent.timestamp),
+        page: trackEvent.page,
+        utm: trackEvent.utm,
+        device: enrichmentData.device,
+        geo: enrichmentData.geo,
+        props: trackEvent.properties,
+      }
+
+      // Process event against funnels
+      await this.funnelRealtime.processEventForFunnels(eventData)
+
+    } catch (error) {
+      // Don't throw - this is background processing
+      this.logger.error('Background funnel processing error', error instanceof Error ? error : new Error(String(error)), {
+        tenantId: tenant.tenantId.toString(),
+        workspaceId: tenant.workspaceId.toString(),
+        eventId,
+        eventName: trackEvent.event_name,
+      })
+    }
+  }
+
+  /**
+   * Process batch events for funnel analysis (async, non-blocking)
+   */
+  private async processBatchEventsForFunnels(
+    events: TrackEventDto[],
+    tenant: HybridTenantContext,
+    enrichmentData: any[],
+    results: any[],
+  ): Promise<void> {
+    try {
+      // Process only successful events for funnels
+      const processingPromises = results
+        .filter(result => result.success)
+        .map(async (result, index) => {
+          const trackEvent = events[index]
+          const enrichment = enrichmentData[index]
+
+          // Transform to the format expected by FunnelRealtimeService
+          const eventData = {
+            tenant_id: tenant.tenantId.toString(),
+            workspace_id: tenant.workspaceId.toString(),
+            anonymous_id: trackEvent.anonymous_id,
+            lead_id: undefined, // Will be populated if user is identified
+            session_id: trackEvent.session_id || '',
+            event_name: trackEvent.event_name,
+            timestamp: new Date(trackEvent.timestamp),
+            page: trackEvent.page,
+            utm: trackEvent.utm,
+            device: enrichment.device,
+            geo: enrichment.geo,
+            props: trackEvent.properties,
+          }
+
+          // Process individual event against funnels
+          await this.funnelRealtime.processEventForFunnels(eventData)
+        })
+
+      // Process all successful events in parallel
+      await Promise.all(processingPromises)
+
+    } catch (error) {
+      // Don't throw - this is background processing
+      this.logger.error('Background batch funnel processing error', error instanceof Error ? error : new Error(String(error)), {
+        tenantId: tenant.tenantId.toString(),
+        workspaceId: tenant.workspaceId.toString(),
+        batchSize: events.length,
+      })
     }
   }
 }
