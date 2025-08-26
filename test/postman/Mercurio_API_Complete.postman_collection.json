@@ -1,0 +1,1283 @@
+{
+	"info": {
+		"_postman_id": "mercurio-api-complete",
+		"name": "Mercurio API - Complete Test Suite",
+		"description": "Comprehensive test collection for all 28 endpoints of Mercurio API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "apikey",
+		"apikey": [
+			{
+				"key": "key",
+				"value": "X-API-Key",
+				"type": "string"
+			},
+			{
+				"key": "value",
+				"value": "{{api_key}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global pre-request script",
+					"console.log('Testing endpoint: ' + pm.info.requestName);",
+					"",
+					"// Set dynamic timestamp",
+					"pm.globals.set('timestamp', new Date().toISOString());"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test script",
+					"pm.test('Response time is less than 2000ms', function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(2000);",
+					"});",
+					"",
+					"pm.test('Content-Type is application/json', function () {",
+					"    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+					"});"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000"
+		}
+	],
+	"item": [
+		{
+			"name": "🏥 Health & Monitoring",
+			"item": [
+				{
+					"name": "Health Check",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has status field', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"    pm.expect(jsonData.status).to.eql('healthy');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						}
+					}
+				},
+				{
+					"name": "Metrics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains metrics', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('uptime');",
+									"    pm.expect(jsonData).to.have.property('memory');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/monitoring/metrics",
+							"host": ["{{base_url}}"],
+							"path": ["monitoring", "metrics"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🏢 CRUD Tenants",
+			"item": [
+				{
+					"name": "List Tenants",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has data array and pagination', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData).to.have.property('pagination');",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"});",
+									"",
+									"// Store first tenant ID for other tests",
+									"if (pm.response.json().data.length > 0) {",
+									"    pm.environment.set('tenant_id', pm.response.json().data[0].id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/tenants?page=1&pageSize=10",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "tenants"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "10"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Tenant",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has created tenant data', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('name');",
+									"    pm.expect(jsonData.name).to.include('Test');",
+									"});",
+									"",
+									"// Store created tenant ID",
+									"pm.environment.set('created_tenant_id', pm.response.json().id);"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Test Tenant {{$timestamp}}\",\n  \"status\": \"active\",\n  \"plan\": \"premium\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/tenants",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "tenants"]
+						}
+					}
+				},
+				{
+					"name": "Get Tenant by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has tenant details', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('name');",
+									"    pm.expect(jsonData).to.have.property('createdAt');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/tenants/{{tenant_id}}?includeStats=true",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "tenants", "{{tenant_id}}"],
+							"query": [
+								{
+									"key": "includeStats",
+									"value": "true"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Tenant",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Tenant was updated', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('name');",
+									"    pm.expect(jsonData.name).to.include('Updated');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Test Tenant {{$timestamp}}\",\n  \"status\": \"active\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/tenants/{{created_tenant_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "tenants", "{{created_tenant_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Tenant",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Tenant was deleted', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('message');",
+									"    pm.expect(jsonData.message).to.include('deleted');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/tenants/{{created_tenant_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "tenants", "{{created_tenant_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🏪 CRUD Workspaces",
+			"item": [
+				{
+					"name": "List Workspaces",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has data array and tenant info', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData).to.have.property('tenant');",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"});",
+									"",
+									"// Store first workspace ID",
+									"if (pm.response.json().data.length > 0) {",
+									"    pm.environment.set('workspace_id', pm.response.json().data[0].id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/tenants/{{tenant_id}}/workspaces?page=1&pageSize=10",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "tenants", "{{tenant_id}}", "workspaces"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "10"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Workspace",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has workspace data', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('name');",
+									"    pm.expect(jsonData).to.have.property('tenantId');",
+									"});",
+									"",
+									"pm.environment.set('created_workspace_id', pm.response.json().id);"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Test Workspace {{$timestamp}}\",\n  \"description\": \"Workspace created during API testing\",\n  \"environment\": \"testing\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/tenants/{{tenant_id}}/workspaces",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "tenants", "{{tenant_id}}", "workspaces"]
+						}
+					}
+				},
+				{
+					"name": "Get Workspace by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has workspace details', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('tenantId');",
+									"    pm.expect(jsonData.tenantId).to.eql(pm.environment.get('tenant_id'));",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/tenants/{{tenant_id}}/workspaces/{{workspace_id}}?includeStats=true",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "tenants", "{{tenant_id}}", "workspaces", "{{workspace_id}}"],
+							"query": [
+								{
+									"key": "includeStats",
+									"value": "true"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Workspace",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Workspace was updated', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.name).to.include('Updated');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Test Workspace {{$timestamp}}\",\n  \"description\": \"Updated during API testing\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/tenants/{{tenant_id}}/workspaces/{{created_workspace_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "tenants", "{{tenant_id}}", "workspaces", "{{created_workspace_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Workspace",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Workspace was deleted', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('deleted');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/tenants/{{tenant_id}}/workspaces/{{created_workspace_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "tenants", "{{tenant_id}}", "workspaces", "{{created_workspace_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📊 Event Ingestion",
+			"item": [
+				{
+					"name": "Track Single Event",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response contains event ID', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('eventId');",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"    pm.expect(jsonData.status).to.eql('tracked');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"eventName\": \"page_view\",\n  \"timestamp\": \"{{timestamp}}\",\n  \"anonymousId\": \"a_123456\",\n  \"sessionId\": \"s_789012\",\n  \"page\": {\n    \"url\": \"https://example.com/test\",\n    \"path\": \"/test\",\n    \"title\": \"Test Page\"\n  },\n  \"utm\": {\n    \"source\": \"postman\",\n    \"medium\": \"api_test\",\n    \"campaign\": \"integration_testing\"\n  },\n  \"device\": {\n    \"os\": \"macOS\",\n    \"browser\": \"Chrome\",\n    \"device_type\": \"desktop\"\n  },\n  \"props\": {\n    \"test\": true,\n    \"version\": \"1.0.0\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/events/track",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "events", "track"]
+						}
+					}
+				},
+				{
+					"name": "Track Batch Events",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response contains processed count', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('processed');",
+									"    pm.expect(jsonData).to.have.property('total');",
+									"    pm.expect(jsonData.processed).to.eql(2);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"events\": [\n    {\n      \"eventName\": \"button_click\",\n      \"timestamp\": \"{{timestamp}}\",\n      \"anonymousId\": \"a_123456\",\n      \"sessionId\": \"s_789012\",\n      \"page\": {\n        \"url\": \"https://example.com/test\",\n        \"path\": \"/test\"\n      },\n      \"props\": {\n        \"button_text\": \"Test Button\",\n        \"location\": \"header\"\n      }\n    },\n    {\n      \"eventName\": \"form_submit\",\n      \"timestamp\": \"{{timestamp}}\",\n      \"anonymousId\": \"a_123456\",\n      \"sessionId\": \"s_789012\",\n      \"props\": {\n        \"form_name\": \"contact_form\",\n        \"success\": true\n      }\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/events/batch",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "events", "batch"]
+						}
+					}
+				},
+				{
+					"name": "Identify User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response confirms identification', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('leadId');",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"    pm.expect(jsonData.status).to.eql('identified');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"anonymousId\": \"a_123456\",\n  \"email\": \"test@example.com\",\n  \"traits\": {\n    \"name\": \"Test User\",\n    \"company\": \"Test Company\",\n    \"plan\": \"premium\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/events/identify",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "events", "identify"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📈 Analytics",
+			"item": [
+				{
+					"name": "Get Visitors Analytics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains visitors data', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData).to.have.property('summary');",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/analytics/visitors?startDate=2024-01-01&endDate=2024-12-31&groupBy=day",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "analytics", "visitors"],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2024-01-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2024-12-31"
+								},
+								{
+									"key": "groupBy",
+									"value": "day"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Sessions Analytics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains sessions data', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData).to.have.property('summary');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/analytics/sessions?startDate=2024-01-01&endDate=2024-12-31",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "analytics", "sessions"],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2024-01-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2024-12-31"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Events Analytics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains events data', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData).to.have.property('summary');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/analytics/events?startDate=2024-01-01&endDate=2024-12-31&eventName=page_view",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "analytics", "events"],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2024-01-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2024-12-31"
+								},
+								{
+									"key": "eventName",
+									"value": "page_view"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get UTM Attribution",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains attribution data', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData).to.have.property('summary');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/analytics/utm-attribution?startDate=2024-01-01&endDate=2024-12-31",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "analytics", "utm-attribution"],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2024-01-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2024-12-31"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Export Analytics Data",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains export info', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('exportId');",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"visitors\",\n  \"format\": \"csv\",\n  \"startDate\": \"2024-01-01\",\n  \"endDate\": \"2024-12-31\",\n  \"fields\": [\"anonymousId\", \"firstUtm\", \"lastUtm\", \"createdAt\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/analytics/export",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "analytics", "export"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🔄 Funnel Analytics",
+			"item": [
+				{
+					"name": "List Funnels",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains funnels data', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData).to.have.property('pagination');",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"});",
+									"",
+									"if (pm.response.json().data.length > 0) {",
+									"    pm.environment.set('funnel_id', pm.response.json().data[0].id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/funnels?page=1&pageSize=10",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "funnels"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "10"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Funnel",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response contains funnel data', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('name');",
+									"    pm.expect(jsonData).to.have.property('steps');",
+									"});",
+									"",
+									"pm.environment.set('created_funnel_id', pm.response.json().id);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Test Signup Funnel {{$timestamp}}\",\n  \"description\": \"Funnel created during API testing\",\n  \"steps\": [\n    {\n      \"name\": \"Landing Page\",\n      \"eventName\": \"page_view\",\n      \"filters\": {\n        \"page.path\": {\n          \"operator\": \"equals\",\n          \"value\": \"/signup\"\n        }\n      }\n    },\n    {\n      \"name\": \"Form Started\",\n      \"eventName\": \"form_start\",\n      \"filters\": {\n        \"props.form_name\": {\n          \"operator\": \"equals\",\n          \"value\": \"signup_form\"\n        }\n      }\n    },\n    {\n      \"name\": \"Form Submitted\",\n      \"eventName\": \"form_submit\",\n      \"filters\": {\n        \"props.form_name\": {\n          \"operator\": \"equals\",\n          \"value\": \"signup_form\"\n        }\n      }\n    }\n  ],\n  \"settings\": {\n    \"conversionWindow\": 30,\n    \"attributionModel\": \"first_touch\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/funnels",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "funnels"]
+						}
+					}
+				},
+				{
+					"name": "Get Funnel by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains funnel details', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('steps');",
+									"    pm.expect(jsonData).to.have.property('settings');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/funnels/{{funnel_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "funnels", "{{funnel_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Funnel",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Funnel was updated', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.name).to.include('Updated');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Test Funnel {{$timestamp}}\",\n  \"description\": \"Updated during API testing\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/funnels/{{created_funnel_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "funnels", "{{created_funnel_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Funnel",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Funnel was deleted', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('deleted');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/funnels/{{created_funnel_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "funnels", "{{created_funnel_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Funnel Conversion Metrics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains conversion data', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('conversionRate');",
+									"    pm.expect(jsonData).to.have.property('steps');",
+									"    pm.expect(jsonData).to.have.property('summary');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/funnels/{{funnel_id}}/conversion?startDate=2024-01-01&endDate=2024-12-31",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "funnels", "{{funnel_id}}", "conversion"],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2024-01-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2024-12-31"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Funnel Attribution",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains attribution data', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('attributionModel');",
+									"    pm.expect(jsonData).to.have.property('channels');",
+									"    pm.expect(jsonData).to.have.property('touchpoints');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/funnels/{{funnel_id}}/attribution?startDate=2024-01-01&endDate=2024-12-31&model=first_touch",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "funnels", "{{funnel_id}}", "attribution"],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2024-01-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2024-12-31"
+								},
+								{
+									"key": "model",
+									"value": "first_touch"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Export Funnel Data",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains export info', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('exportId');",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"funnelId\": \"{{funnel_id}}\",\n  \"format\": \"csv\",\n  \"startDate\": \"2024-01-01\",\n  \"endDate\": \"2024-12-31\",\n  \"includeUserJourney\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/funnels/export",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "funnels", "export"]
+						}
+					}
+				}
+			]
+		}
+	]
+}
