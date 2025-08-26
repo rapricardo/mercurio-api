@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../../prisma.service';
-import { provisionTenant, ProvisioningResult } from '../provision-tenant';
+import { provisionTenant, ProvisioningResult } from '../../../scripts/provision-tenant';
 
 describe('Provisioning System', () => {
   let prismaService: PrismaService;

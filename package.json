@@ -6,7 +6,14 @@
   "license": "UNLICENSED",
   "private": true,
   "author": "Mercurio Team",
-  "keywords": ["analytics", "event-ingestion", "api", "nestjs", "prisma", "multi-tenant"],
+  "keywords": [
+    "analytics",
+    "event-ingestion",
+    "api",
+    "nestjs",
+    "prisma",
+    "multi-tenant"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/your-username/mercurio-api.git"
@@ -51,10 +58,11 @@
     "@prisma/client": "^5.22.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "commander": "^11.1.0",
     "fastify": "^4.25.2",
+    "ioredis": "^5.7.0",
     "reflect-metadata": "^0.1.14",
-    "rxjs": "^7.8.1",
-    "commander": "^11.1.0"
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.5",
@@ -79,25 +87,8 @@
     "ts-loader": "^9.4.3",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "tsconfig-paths": "^4.2.1",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.4.5"
-  },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
   },
   "engines": {
     "node": ">=18.0.0",

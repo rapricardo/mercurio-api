@@ -35,7 +35,7 @@ export class EventsController {
 
   @Post('track')
   @HttpCode(HttpStatus.OK)
-  @RequireScopes('write', 'events:write')
+  @RequireScopes(['write', 'events:write'])
   @RateLimit({ endpoint: 'events' })
   async trackEvent(
     @Body() trackEvent: TrackEventDto,
@@ -125,7 +125,7 @@ export class EventsController {
 
   @Post('batch')
   @HttpCode(HttpStatus.OK)
-  @RequireScopes('write', 'events:write')
+  @RequireScopes(['write', 'events:write'])
   @RateLimit({ endpoint: 'events' })
   async batchEvents(
     @Body() batchDto: BatchEventDto,
@@ -224,7 +224,7 @@ export class EventsController {
 
   @Post('identify')
   @HttpCode(HttpStatus.OK)
-  @RequireScopes('write', 'events:write')
+  @RequireScopes(['write', 'events:write'])
   @RateLimit({ endpoint: 'events' })
   async identifyUser(
     @Body() identifyDto: IdentifyEventDto,

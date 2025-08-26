@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { randomBytes, createHmac, createCipherGCM, createDecipherGCM } from 'crypto';
+import { randomBytes, createHmac } from 'crypto';
+import * as crypto from 'crypto';
 import { MetricsService } from './metrics.service';
 
 export interface EncryptedPII {
@@ -155,7 +156,7 @@ export class EncryptionService {
       const iv = randomBytes(12);
       
       // Create cipher
-      const cipher = createCipherGCM('aes-256-gcm', key, iv, { authTagLength: 16 });
+      const cipher = crypto.createCipher('aes-256-gcm', key.toString('hex'));
       
       // Set Additional Authenticated Data
       cipher.setAAD(Buffer.from(`${type}:${this.config.currentKeyVersion}`));
@@ -213,7 +214,7 @@ export class EncryptionService {
       const encrypted = combined.slice(28);
       
       // Create decipher
-      const decipher = createDecipherGCM('aes-256-gcm', key, iv, { authTagLength: 16 });
+      const decipher = crypto.createDecipher('aes-256-gcm', key.toString('hex'));
       decipher.setAAD(Buffer.from(`${type}:${targetKeyVersion}`));
       decipher.setAuthTag(authTag);
       

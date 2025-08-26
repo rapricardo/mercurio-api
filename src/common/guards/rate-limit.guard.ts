@@ -12,14 +12,11 @@ import { RateLimitService } from '../services/rate-limit.service';
 import { MercurioLogger } from '../services/logger.service';
 import { REQUEST_CONTEXT_KEY } from '../middleware/request-context.middleware';
 
-// Decorator to set rate limit endpoint type
+// Decorator to set rate limit endpoint type  
+const RateLimitEndpointDecorator = Reflector.createDecorator<'events' | 'queries' | 'admin'>();
+
 export const RateLimitEndpoint = (endpoint: 'events' | 'queries' | 'admin') => {
-  return (target: any, propertyKey?: string, descriptor?: PropertyDescriptor) => {
-    const Reflector = require('@nestjs/core').Reflector;
-    Reflector.createDecorator<'events' | 'queries' | 'admin'>()('rate-limit-endpoint')(
-      endpoint
-    )(target, propertyKey, descriptor);
-  };
+  return RateLimitEndpointDecorator(endpoint);
 };
 
 // Custom rate limit decorator
@@ -51,7 +48,7 @@ export class RateLimitGuard implements CanActivate {
     const response = context.switchToHttp().getResponse<FastifyReply>();
     
     // Get request context (includes tenant information)
-    const requestContext = request.raw[REQUEST_CONTEXT_KEY];
+    const requestContext = (request.raw as any)[REQUEST_CONTEXT_KEY];
     
     if (!requestContext || !requestContext.tenantId) {
       this.logger.warn('Rate limit check skipped - no tenant context available');

@@ -81,7 +81,7 @@ export class ApiKeyService {
           workspaceId: apiKey.workspaceId,
           apiKeyId: apiKey.id,
           scopes: Array.isArray(apiKey.scopes) ? apiKey.scopes as string[] : [],
-          lastUsedAt: apiKey.lastUsedAt,
+          lastUsedAt: apiKey.lastUsedAt || undefined,
         }
       }
 

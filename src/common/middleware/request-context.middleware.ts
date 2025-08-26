@@ -32,7 +32,7 @@ export class RequestContextMiddleware implements NestMiddleware {
     };
 
     // Store in request object
-    req[REQUEST_CONTEXT_KEY] = requestContext;
+    (req as any)[REQUEST_CONTEXT_KEY] = requestContext;
 
     // Set response header for client tracking
     res.setHeader('X-Request-ID', requestId);

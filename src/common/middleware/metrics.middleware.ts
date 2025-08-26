@@ -13,7 +13,7 @@ export class MetricsMiddleware implements NestMiddleware {
 
   use(req: FastifyRequest['raw'], res: FastifyReply['raw'], next: () => void) {
     const startTime = Date.now();
-    const requestContext = req[REQUEST_CONTEXT_KEY];
+    const requestContext = (req as any)[REQUEST_CONTEXT_KEY];
 
     // Increment request counter
     this.metrics.incrementCounter('requests.total');

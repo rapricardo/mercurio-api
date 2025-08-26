@@ -9,9 +9,11 @@ import { RequestContextMiddleware } from './middleware/request-context.middlewar
 import { ApiKeyGuard } from './auth/api-key.guard';
 import { RateLimitGuard } from './guards/rate-limit.guard';
 import { ApiKeyService } from './auth/api-key.service';
+import { PrismaService } from '../prisma.service';
 
 @Module({
   providers: [
+    PrismaService,
     MercurioLogger,
     CacheService,
     MetricsService,
@@ -23,6 +25,7 @@ import { ApiKeyService } from './auth/api-key.service';
     RateLimitGuard,
   ],
   exports: [
+    PrismaService,
     MercurioLogger,
     CacheService,
     MetricsService,

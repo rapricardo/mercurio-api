@@ -3,7 +3,7 @@ import { Transform } from 'class-transformer'
 
 export class PageInfoDto {
   @IsString()
-  url: string
+  url!: string
 
   @IsOptional()
   @IsString()
@@ -48,16 +48,16 @@ export class TrackEventDto {
 
   @IsString()
   @Length(1, 100)
-  event_name: string
+  event_name!: string
 
   @IsISO8601()
-  timestamp: string
+  timestamp!: string
 
   @IsString()
   @Matches(/^a_[a-zA-Z0-9_]+$/, {
     message: 'anonymous_id must start with "a_" and contain only alphanumeric characters and underscores'
   })
-  anonymous_id: string
+  anonymous_id!: string
 
   @IsOptional()
   @IsString()
@@ -81,7 +81,7 @@ export class TrackEventDto {
 
 export class BatchEventDto {
   @IsObject({ each: true })
-  events: TrackEventDto[]
+  events!: TrackEventDto[]
 }
 
 export class IdentifyEventDto {
@@ -89,7 +89,7 @@ export class IdentifyEventDto {
   @Matches(/^a_[a-zA-Z0-9_]+$/, {
     message: 'anonymous_id must start with "a_" and contain only alphanumeric characters and underscores'
   })
-  anonymous_id: string
+  anonymous_id!: string
 
   @IsOptional()
   @IsString()

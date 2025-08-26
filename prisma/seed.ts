@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 
 const prisma = new PrismaClient();
 
-function randomKey(prefix: string, bytes = 16) {
+function randomKey(prefix: string, bytes = 32) {
   const raw = crypto.randomBytes(bytes).toString('base64url');
   return `${prefix}_${raw}`;
 }

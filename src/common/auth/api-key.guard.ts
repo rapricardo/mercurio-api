@@ -17,8 +17,7 @@ export const REQUIRED_SCOPES_KEY = 'requiredScopes'
 /**
  * Decorator to specify required scopes for an endpoint
  */
-export const RequireScopes = (...scopes: string[]) =>
-  Reflector.createDecorator<string[]>({ key: REQUIRED_SCOPES_KEY, value: scopes })
+export const RequireScopes = Reflector.createDecorator<string[]>();
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
@@ -99,7 +98,7 @@ export class ApiKeyGuard implements CanActivate {
 
     // Check required scopes
     const requiredScopes = this.reflector.get<string[]>(
-      REQUIRED_SCOPES_KEY,
+      RequireScopes,
       context.getHandler(),
     )
 

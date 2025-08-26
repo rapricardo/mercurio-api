@@ -20,50 +20,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           url: process.env.DATABASE_URL,
         },
       },
-      // Database connection pool configuration
-      __internal: {
-        engine: {
-          connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT || '10'),
-          poolTimeout: parseInt(process.env.DB_POOL_TIMEOUT || '10000'), // 10s
-          idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT || '600000'), // 10min
-        },
-      },
     });
 
-    // Log database queries in development and record metrics
-    this.$on('query', (event: any) => {
-      // Record database metrics
-      this.metrics?.incrementCounter('database.queries');
-      this.metrics?.recordLatency('database.query_latency', event.duration || 0);
-      
-      // Log in development
-      if (process.env.NODE_ENV === 'development') {
-        this.logger.debug(`Query: ${event.query}`);
-        this.logger.debug(`Params: ${event.params}`);
-        this.logger.debug(`Duration: ${event.duration}ms`);
-      }
-      
-      // Log slow queries (> 100ms) in all environments
-      if (event.duration && event.duration > 100) {
-        this.logger.warn(`Slow database query detected`, {
-          query: event.query,
-          duration: event.duration,
-          params: event.params,
-        });
-      }
-    });
-
-    this.$on('error', (event: any) => {
-      this.logger.error('Database error:', event);
-    });
-
-    this.$on('warn', (event: any) => {
-      this.logger.warn('Database warning:', event);
-    });
-
-    this.$on('info', (event: any) => {
-      this.logger.log('Database info:', event);
-    });
+    // Event handlers will be set up after connection
   }
 
   async onModuleInit() {

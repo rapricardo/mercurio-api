@@ -228,7 +228,7 @@ describe('Payload Validation', () => {
 
       // Mock enrichment to simulate invalid version handling
       (enrichment.enrichEvent as jest.Mock).mockReturnValue({
-        ...enrichment.enrichEvent(),
+        ...enrichment.enrichEvent({} as any),
         schemaVersion: '1.0.0', // Default fallback
       });
 

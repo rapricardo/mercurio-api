@@ -42,12 +42,12 @@ export class RateLimitService {
   private readonly config: RateLimitConfig;
   private readonly inMemoryBuckets = new Map<string, TokenBucket>();
   private redisClient: any = null;
-  private cleanupInterval: NodeJS.Timeout;
+  private cleanupInterval!: NodeJS.Timeout;
 
   constructor(private readonly metrics: MetricsService) {
     this.config = {
       redis: {
-        enabled: process.env.REDIS_URL ? true : false,
+        enabled: process.env.REDIS_ENABLED === 'true',
         url: process.env.REDIS_URL,
         keyPrefix: process.env.RATE_LIMIT_REDIS_PREFIX || 'mercurio:ratelimit:',
         connectionTimeout: parseInt(process.env.REDIS_CONNECTION_TIMEOUT || '5000'),
