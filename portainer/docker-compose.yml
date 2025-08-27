@@ -28,7 +28,7 @@ services:
 
   # Mercurio Analytics API
   mercurio-api:
-    image: ghcr.io/ricorezultz/mercurio-api:latest
+    image: ghcr.io/rapricardo/mercurio-api:latest
     restart: unless-stopped
     environment:
       # Core Application

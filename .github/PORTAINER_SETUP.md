@@ -5,7 +5,7 @@ Este guia mostra como configurar a Mercurio API no Portainer usando a imagem do 
 ## 📦 Imagem Docker
 
 ```bash
-ghcr.io/tocha/mercurio-api:latest
+ghcr.io/rapricardo/mercurio-api:latest
 ```
 
 ## 🏗️ Configuração do Stack
@@ -22,7 +22,7 @@ version: '3.8'
 
 services:
   mercurio-api:
-    image: ghcr.io/tocha/mercurio-api:latest
+    image: ghcr.io/rapricardo/mercurio-api:latest
     container_name: mercurio-api
     restart: unless-stopped
     ports:
@@ -142,7 +142,7 @@ services:
       - mercurio-network
 
   mercurio-api:
-    image: ghcr.io/tocha/mercurio-api:latest
+    image: ghcr.io/rapricardo/mercurio-api:latest
     container_name: mercurio-api
     restart: unless-stopped
     ports:
