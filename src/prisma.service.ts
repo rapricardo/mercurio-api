@@ -25,6 +25,14 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           url: process.env.DATABASE_URL,
         },
       },
+      // Configure for pgBouncer compatibility
+      ...(process.env.DATABASE_URL?.includes('pgbouncer=true') && {
+        datasources: {
+          db: {
+            url: process.env.DATABASE_URL,
+          },
+        },
+      }),
     });
 
     // Event handlers will be set up after connection

@@ -62,7 +62,8 @@ MERCURIO_REDIS_PASSWORD=${MERCURIO_REDIS_PASSWORD}
 # 🗄️ SUPABASE DATABASE CONFIGURATION
 # =============================================================================
 # ⚠️  PREENCHA MANUALMENTE com seus dados do Supabase:
-SUPABASE_DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres?schema=public
+# URL com parâmetros otimizados para pgBouncer/Transaction Pooler
+SUPABASE_DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@aws-1-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
 SUPABASE_URL=https://[YOUR-PROJECT-REF].supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
 SUPABASE_ANON_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...

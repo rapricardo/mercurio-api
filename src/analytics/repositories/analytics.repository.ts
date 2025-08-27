@@ -87,15 +87,16 @@ export class AnalyticsRepository {
       `,
     ]);
 
-    const baseMetrics = metrics[0] || {
+    // Safely handle potentially empty results
+    const baseMetrics = (Array.isArray(metrics) && metrics.length > 0 && metrics[0]) ? metrics[0] : {
       total_events: 0,
       unique_visitors: 0,
       total_sessions: 0,
       conversions: 0,
     };
 
-    const topEventName = topEvent[0]?.event_name || null;
-    const sessionStats = sessionMetrics[0] || {
+    const topEventName = (Array.isArray(topEvent) && topEvent.length > 0 && topEvent[0]) ? topEvent[0].event_name : null;
+    const sessionStats = (Array.isArray(sessionMetrics) && sessionMetrics.length > 0 && sessionMetrics[0]) ? sessionMetrics[0] : {
       avg_session_duration: 0,
       bounce_rate: 0,
     };
@@ -141,7 +142,8 @@ export class AnalyticsRepository {
     // Use $queryRawUnsafe to avoid Prisma template literal parsing issues
     const result = await this.prisma.$queryRawUnsafe<EventAggregation[]>(querySQL);
 
-    return result;
+    // Handle potentially empty results with proper default values
+    return Array.isArray(result) ? result : [];
   }
 
   /**
@@ -193,7 +195,8 @@ export class AnalyticsRepository {
       LIMIT ${limit}
     `;
 
-    return result;
+    // Handle potentially empty results
+    return Array.isArray(result) ? result : [];
   }
 
   /**
@@ -258,11 +261,20 @@ export class AnalyticsRepository {
         END
     `;
 
+    // Handle potentially empty results with safe mapping
+    if (!Array.isArray(result) || result.length === 0) {
+      return [
+        { activity_level: 'high_activity', visitors: 0, percentage: 0, avg_events_per_session: 0 },
+        { activity_level: 'medium_activity', visitors: 0, percentage: 0, avg_events_per_session: 0 },
+        { activity_level: 'low_activity', visitors: 0, percentage: 0, avg_events_per_session: 0 },
+      ];
+    }
+
     return result.map(row => ({
       activity_level: row.activity_level as 'high_activity' | 'medium_activity' | 'low_activity',
-      visitors: row.visitors,
-      percentage: Number(row.percentage),
-      avg_events_per_session: Number(row.avg_events_per_session),
+      visitors: row.visitors || 0,
+      percentage: Number(row.percentage) || 0,
+      avg_events_per_session: Number(row.avg_events_per_session) || 0,
     }));
   }
 
@@ -325,7 +337,8 @@ export class AnalyticsRepository {
       LEFT JOIN visitor_history vh ON pv.anonymous_id = vh.anonymous_id
     `;
 
-    const summary = result[0] || {
+    // Safely handle potentially empty results
+    const summary = (Array.isArray(result) && result.length > 0 && result[0]) ? result[0] : {
       total_visitors: 0,
       identified_leads: 0,
       returning_visitors: 0,
@@ -405,13 +418,14 @@ export class AnalyticsRepository {
       this.prisma.$queryRawUnsafe<[{ count: number }]>(countQuery),
     ]);
 
-    const totalCount = countResult[0]?.count || 0;
+    // Safely handle potentially empty results
+    const totalCount = (Array.isArray(countResult) && countResult.length > 0 && countResult[0]) ? countResult[0].count : 0;
 
     return {
-      events: events.map(event => this.convertBigIntToString({
+      events: Array.isArray(events) ? events.map(event => this.convertBigIntToString({
         ...event,
         timestamp: new Date(event.timestamp).toISOString(),
-      })),
+      })) : [],
       totalCount,
     };
   }
