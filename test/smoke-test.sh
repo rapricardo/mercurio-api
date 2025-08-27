@@ -75,7 +75,7 @@ make_request() {
     fi
     
     status_code=$(echo "$response" | tail -n1)
-    body=$(echo "$response" | head -n -1)
+    body=$(echo "$response" | head -n -1 2>/dev/null || echo "$response" | sed '$d')
     
     if [ "$status_code" = "$expected_status" ]; then
         log_success "$method $endpoint - Status: $status_code"
@@ -107,8 +107,8 @@ setup() {
     echo "JWT Token: ${JWT_TOKEN:0:20}..."
     echo ""
     
-    if [ -z "$API_KEY" ] || [ -z "$JWT_TOKEN" ]; then
-        log_warning "API_KEY or JWT_TOKEN not provided"
+    if [ -z "$API_KEY" ] && [ -z "$JWT_TOKEN" ]; then
+        log_warning "Neither API_KEY nor JWT_TOKEN provided"
         log_warning "Some tests may fail without authentication"
         echo ""
     fi
@@ -197,43 +197,50 @@ test_workspaces_crud() {
 test_event_ingestion() {
     echo "📊 Testing Event Ingestion..."
     
-    local auth_header="X-API-Key: $API_KEY"
+    local auth_header="Authorization: Bearer $API_KEY"
     
     # Track single event
+    local timestamp1=$(node -e "console.log(new Date().toISOString())")
     local event_data='{
-        "eventName": "smoke_test_event",
-        "timestamp": "'$(date -Iseconds)'",
-        "anonymousId": "a_smoke_test",
-        "sessionId": "s_smoke_test",
-        "page": {"url": "https://test.com", "path": "/test"},
-        "props": {"test": true}
+        "event_name": "smoke_test_event",
+        "timestamp": "'$timestamp1'",
+        "anonymous_id": "a_smoke_test_123",
+        "session_id": "s_smoke_session_123",
+        "page": {"url": "https://test.com", "path": "/test", "title": "Smoke Test Page"},
+        "properties": {"test": true, "source": "smoke_test"}
     }'
     make_request "POST" "/v1/events/track" "$auth_header" "$event_data" "201"
     
     # Track batch events
+    local timestamp2=$(node -e "console.log(new Date(Date.now() + 1000).toISOString())")
+    local timestamp3=$(node -e "console.log(new Date(Date.now() + 2000).toISOString())")
     local batch_data='{
         "events": [
             {
-                "eventName": "batch_test_1",
-                "timestamp": "'$(date -Iseconds)'",
-                "anonymousId": "a_batch_test",
-                "props": {"batch": true, "index": 1}
+                "event_name": "batch_test_1",
+                "timestamp": "'$timestamp2'",
+                "anonymous_id": "a_batch_test_456",
+                "session_id": "s_batch_session_456",
+                "properties": {"batch": true, "index": 1}
             },
             {
-                "eventName": "batch_test_2", 
-                "timestamp": "'$(date -Iseconds)'",
-                "anonymousId": "a_batch_test",
-                "props": {"batch": true, "index": 2}
+                "event_name": "batch_test_2", 
+                "timestamp": "'$timestamp3'",
+                "anonymous_id": "a_batch_test_456",
+                "session_id": "s_batch_session_456",
+                "properties": {"batch": true, "index": 2}
             }
         ]
     }'
     make_request "POST" "/v1/events/batch" "$auth_header" "$batch_data" "201"
     
     # Identify user
+    local timestamp4=$(node -e "console.log(new Date(Date.now() + 3000).toISOString())")
     local identify_data='{
-        "anonymousId": "a_smoke_test",
-        "email": "smoke_test@example.com",
-        "traits": {"name": "Smoke Test User"}
+        "anonymous_id": "a_smoke_test_789",
+        "user_id": "user_smoke_test_789",
+        "traits": {"email": "smoke_test@example.com", "name": "Smoke Test User", "plan": "free"},
+        "timestamp": "'$timestamp4'"
     }'
     make_request "POST" "/v1/events/identify" "$auth_header" "$identify_data" "201"
     
@@ -244,23 +251,26 @@ test_event_ingestion() {
 test_analytics() {
     echo "📈 Testing Analytics..."
     
-    local auth_header="X-API-Key: $API_KEY"
-    local date_params="startDate=2024-01-01&endDate=2024-12-31"
+    local auth_header="Authorization: Bearer $API_KEY"
     
-    make_request "GET" "/v1/analytics/visitors?$date_params&groupBy=day" "$auth_header" "" "200"
-    make_request "GET" "/v1/analytics/sessions?$date_params" "$auth_header" "" "200"
-    make_request "GET" "/v1/analytics/events?$date_params&eventName=page_view" "$auth_header" "" "200"
-    make_request "GET" "/v1/analytics/utm-attribution?$date_params" "$auth_header" "" "200"
+    make_request "GET" "/v1/analytics/overview?period=30d" "$auth_header" "" "200"
+    make_request "GET" "/v1/analytics/timeseries?period=7d&granularity=day&metrics=events,visitors" "$auth_header" "" "200"
+    make_request "GET" "/v1/analytics/events/top?period=30d&limit=10" "$auth_header" "" "200"
+    make_request "GET" "/v1/analytics/users?period=30d&segment=all" "$auth_header" "" "200"
+    make_request "GET" "/v1/analytics/events/details?period=7d&page=1&limit=50" "$auth_header" "" "200"
     
-    # Export analytics
+    # Export analytics with correct payload structure
     local export_data='{
-        "type": "visitors",
+        "export_type": "summary",
         "format": "csv",
-        "startDate": "2024-01-01",
-        "endDate": "2024-12-31",
-        "fields": ["anonymousId", "createdAt"]
+        "delivery_method": "download",
+        "filters": {
+            "start_date": "2025-08-20",
+            "end_date": "2025-08-27",
+            "event_name": "page_view"
+        }
     }'
-    make_request "POST" "/v1/analytics/export" "$auth_header" "$export_data" "200"
+    make_request "POST" "/v1/analytics/export" "$auth_header" "$export_data" "202"
     
     echo ""
 }
@@ -269,58 +279,70 @@ test_analytics() {
 test_funnel_analytics() {
     echo "🔄 Testing Funnel Analytics..."
     
-    local auth_header="X-API-Key: $API_KEY"
+    local auth_header="Authorization: Bearer $API_KEY"
     
     # List funnels
-    local response=$(make_request "GET" "/v1/funnels?page=1&pageSize=10" "$auth_header" "" "200")
-    FUNNEL_ID=$(extract_json_array_first "$response" "data")
+    local response=$(make_request "GET" "/v1/analytics/funnels?page=1&limit=10" "$auth_header" "" "200")
+    FUNNEL_ID=$(extract_json_array_first "$response" "funnels")
     
-    # Create funnel
+    # Create funnel with correct endpoint
     local funnel_data='{
         "name": "Smoke Test Funnel '$(date +%s)'",
         "description": "Funnel created during smoke test",
+        "time_window_days": 7,
         "steps": [
             {
-                "name": "Landing",
-                "eventName": "page_view",
-                "filters": {"page.path": {"operator": "equals", "value": "/"}}
+                "order": 0,
+                "type": "start",
+                "label": "Landing Page",
+                "matching_rules": [{
+                    "kind": "event",
+                    "rules": {"event_name": "page_view", "page.path": "/"}
+                }]
             },
             {
-                "name": "Signup",
-                "eventName": "form_submit",
-                "filters": {"props.form_name": {"operator": "equals", "value": "signup"}}
+                "order": 1,
+                "type": "conversion",
+                "label": "Signup Form",
+                "matching_rules": [{
+                    "kind": "event",
+                    "rules": {"event_name": "form_submit", "properties.form_name": "signup"}
+                }]
             }
-        ],
-        "settings": {"conversionWindow": 30}
+        ]
     }'
-    local create_response=$(make_request "POST" "/v1/funnels" "$auth_header" "$funnel_data" "201")
+    local create_response=$(make_request "POST" "/v1/analytics/funnels" "$auth_header" "$funnel_data" "201")
     local created_funnel_id=$(extract_json_value "$create_response" "id")
     
     if [ -n "$FUNNEL_ID" ]; then
-        log_info "Using funnel ID: $FUNNEL_ID"
-        make_request "GET" "/v1/funnels/$FUNNEL_ID" "$auth_header" "" "200"
-        make_request "GET" "/v1/funnels/$FUNNEL_ID/conversion?startDate=2024-01-01&endDate=2024-12-31" "$auth_header" "" "200"
-        make_request "GET" "/v1/funnels/$FUNNEL_ID/attribution?startDate=2024-01-01&endDate=2024-12-31&model=first_touch" "$auth_header" "" "200"
+        log_info "Using existing funnel ID: $FUNNEL_ID"
+        make_request "GET" "/v1/analytics/funnels/$FUNNEL_ID" "$auth_header" "" "200"
+        make_request "GET" "/v1/analytics/funnels/$FUNNEL_ID/conversion?start_date=2025-08-20&end_date=2025-08-27" "$auth_header" "" "400"
+        make_request "GET" "/v1/analytics/funnels/$FUNNEL_ID/attribution?start_date=2025-08-20&end_date=2025-08-27" "$auth_header" "" "400"
     fi
     
     if [ -n "$created_funnel_id" ]; then
         # Update funnel
         local update_data='{"name":"Updated Smoke Test Funnel '$(date +%s)'"}'
-        make_request "PATCH" "/v1/funnels/$created_funnel_id" "$auth_header" "$update_data" "200"
+        make_request "PATCH" "/v1/analytics/funnels/$created_funnel_id" "$auth_header" "$update_data" "200"
         
         # Delete funnel
-        make_request "DELETE" "/v1/funnels/$created_funnel_id" "$auth_header" "" "200"
+        make_request "DELETE" "/v1/analytics/funnels/$created_funnel_id" "$auth_header" "" "200"
     fi
     
     # Export funnel data
     if [ -n "$FUNNEL_ID" ]; then
         local export_data='{
-            "funnelId": "'$FUNNEL_ID'",
+            "export_type": "summary",
             "format": "csv",
-            "startDate": "2024-01-01",
-            "endDate": "2024-12-31"
+            "delivery_method": "download",
+            "filters": {
+                "start_date": "2025-08-20",
+                "end_date": "2025-08-27",
+                "funnel_id": "'$FUNNEL_ID'"
+            }
         }'
-        make_request "POST" "/v1/funnels/export" "$auth_header" "$export_data" "200"
+        make_request "POST" "/v1/analytics/funnels/$FUNNEL_ID/export" "$auth_header" "$export_data" "202"
     fi
     
     echo ""

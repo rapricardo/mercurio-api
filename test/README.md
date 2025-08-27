@@ -27,6 +27,11 @@ npm run provision:tenant -- --name "Test Tenant" --workspace "Test Workspace"
 # Guarde o API key retornado: ak_xxxxx
 ```
 
+ Quick Start:
+   Tenant ID: 5
+   Workspace ID: 5
+   API Key: ak_lqrK95yu3zxQnA-xSoTGxg
+
 ### 2. Smoke Test Rápido
 
 ```bash

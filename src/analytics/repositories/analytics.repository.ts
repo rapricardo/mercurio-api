@@ -122,35 +122,24 @@ export class AnalyticsRepository {
     granularity: 'hour' | 'day' | 'week',
     metrics: string[],
   ): Promise<EventAggregation[]> {
-    const timeFormat = this.getTimeFormat(granularity);
     const metricSelections = this.buildMetricSelections(metrics);
-
-    const result = await this.prisma.$queryRaw<EventAggregation[]>`
-      WITH time_series AS (
-        SELECT generate_series(
-          date_trunc(${granularity}, ${startDate}::timestamp),
-          date_trunc(${granularity}, ${endDate}::timestamp),
-          ${Prisma.raw(`'1 ${granularity}'::interval`)}
-        ) AS period
-      ),
-      event_aggregations AS (
-        SELECT 
-          date_trunc(${granularity}, timestamp) as period,
-          ${Prisma.raw(metricSelections)}
-        FROM event
-        WHERE tenant_id = ${tenantId}
-          AND workspace_id = ${workspaceId}
-          AND timestamp >= ${startDate}
-          AND timestamp <= ${endDate}
-        GROUP BY date_trunc(${granularity}, timestamp)
-      )
+    
+    // Build the complete query as a string and use $queryRawUnsafe to avoid Prisma template literal issues
+    const querySQL = `
       SELECT 
-        time_series.period,
-        ${Prisma.raw(this.buildCoalesceSelections(metrics))}
-      FROM time_series
-      LEFT JOIN event_aggregations ON time_series.period = event_aggregations.period
-      ORDER BY time_series.period ASC
+        date_trunc('${granularity}', e.timestamp) as period,
+        ${metricSelections}
+      FROM event e
+      WHERE e.tenant_id = ${tenantId}
+        AND e.workspace_id = ${workspaceId}
+        AND e.timestamp >= '${startDate.toISOString()}'
+        AND e.timestamp <= '${endDate.toISOString()}'
+      GROUP BY date_trunc('${granularity}', e.timestamp)
+      ORDER BY date_trunc('${granularity}', e.timestamp) ASC
     `;
+    
+    // Use $queryRawUnsafe to avoid Prisma template literal parsing issues
+    const result = await this.prisma.$queryRawUnsafe<EventAggregation[]>(querySQL);
 
     return result;
   }
@@ -444,13 +433,13 @@ export class AnalyticsRepository {
       selections.push('COUNT(*)::int as total_events');
     }
     if (metrics.includes('visitors')) {
-      selections.push('COUNT(DISTINCT anonymous_id)::int as unique_visitors');
+      selections.push('COUNT(DISTINCT e.anonymous_id)::int as unique_visitors');
     }
     if (metrics.includes('sessions')) {
-      selections.push('COUNT(DISTINCT session_id)::int as total_sessions');
+      selections.push('COUNT(DISTINCT e.session_id)::int as total_sessions');
     }
     if (metrics.includes('conversions')) {
-      selections.push('COUNT(DISTINCT CASE WHEN lead_id IS NOT NULL THEN anonymous_id END)::int as conversions');
+      selections.push('COUNT(DISTINCT CASE WHEN e.lead_id IS NOT NULL THEN e.anonymous_id END)::int as conversions');
     }
 
     // Se nenhuma métrica foi especificada, usar uma métrica padrão

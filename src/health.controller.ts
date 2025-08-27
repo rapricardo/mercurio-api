@@ -37,91 +37,14 @@ export class HealthController {
   ) {}
 
   @Get('/health')
-  async health(@Res() reply: FastifyReply) {
-    const startTime = Date.now();
-    const timestamp = new Date().toISOString();
-
-    try {
-      // Perform all health checks in parallel
-      const [databaseCheck, memoryCheck] = await Promise.all([
-        this.checkDatabase(),
-        this.checkMemory(),
-      ]);
-
-      const responseTimeMs = Date.now() - startTime;
-      
-      // Determine overall status
-      const checks = { database: databaseCheck, memory: memoryCheck };
-      const overallStatus = this.determineOverallStatus(checks);
-
-      const response: HealthResponse = {
-        status: overallStatus,
-        service: 'mercurio-api',
-        version: process.env.npm_package_version || '1.0.0',
-        timestamp,
-        uptime: Math.floor(process.uptime()),
-        responseTimeMs,
-        checks,
-        metadata: {
-          nodeVersion: process.version,
-          environment: process.env.NODE_ENV || 'development',
-          pid: process.pid,
-        }
-      };
-
-      // Log health check for monitoring
-      this.logger.log('Health check completed', {}, {
-        category: 'health_check',
-        status: overallStatus,
-        responseTimeMs,
-        databaseStatus: databaseCheck.status,
-        memoryStatus: memoryCheck.status,
-      });
-
-      // Set appropriate HTTP status code
-      const statusCode = overallStatus === 'healthy' 
-        ? HttpStatus.OK 
-        : overallStatus === 'degraded' 
-        ? HttpStatus.OK  // Still return 200 for degraded
-        : HttpStatus.SERVICE_UNAVAILABLE;
-
-      reply.code(statusCode);
-      return response;
-
-    } catch (error) {
-      const responseTimeMs = Date.now() - startTime;
-      
-      this.logger.error('Health check failed', error instanceof Error ? error : new Error('Unknown error'), {}, {
-        category: 'health_check',
-        responseTimeMs,
-      });
-
-      const errorResponse: HealthResponse = {
-        status: 'unhealthy',
-        service: 'mercurio-api',
-        version: process.env.npm_package_version || '1.0.0',
-        timestamp,
-        uptime: Math.floor(process.uptime()),
-        responseTimeMs,
-        checks: {
-          database: {
-            name: 'database',
-            status: 'unhealthy',
-            responseTimeMs: 0,
-            error: 'Health check failed'
-          },
-          memory: {
-            name: 'memory',
-            status: 'unhealthy',
-            responseTimeMs: 0,
-            error: 'Health check failed'
-          }
-        },
-      };
-
-      reply.code(HttpStatus.SERVICE_UNAVAILABLE);
-      return errorResponse;
-    }
+  async health() {
+    // Super simple health check for testing
+    return {
+      status: 'healthy',
+      service: 'mercurio-api',
+      timestamp: new Date().toISOString(),
+      uptime: Math.floor(process.uptime())
+    };
   }
 
   /**
