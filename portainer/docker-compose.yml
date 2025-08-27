@@ -1,139 +1,119 @@
 version: '3.8'
 
-# Mercurio API Stack for Portainer
-# Copy this content into Portainer Stack configuration
+# REDES
+networks:
+  mercurio_internal_network:
+    driver: bridge
+  proxy_network:
+    name: apollo_prod_public_network
+    external: true
 
+# SERVIÇOS
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
+  # Redis Cache para Mercurio API
+  redis_mercurio:
+    image: redis:7-alpine
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: mercurio
-      POSTGRES_USER: mercurio_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    command: redis-server --requirepass "${MERCURIO_REDIS_PASSWORD}"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - postgres_backups:/backups
-    networks:
-      - mercurio_network
+      - redis_mercurio_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mercurio_user -d mercurio"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
-    labels:
-      - "traefik.enable=false"
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - mercurio_internal_network
 
-  # Mercurio API - Uses image from GitHub Container Registry
-  api:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/mercurio-api:latest
+  # Mercurio Analytics API
+  mercurio-api:
+    image: ghcr.io/tocha/mercurio-api:latest
     restart: unless-stopped
     environment:
-      NODE_ENV: production
-      PORT: 3000
-      
-      # Database connection
-      DATABASE_URL: postgresql://mercurio_user:${POSTGRES_PASSWORD}@postgres:5432/mercurio?schema=public
-      
-      # Encryption secrets (GENERATE NEW ONES FOR PRODUCTION!)
-      ENCRYPTION_KEK_SECRET: ${ENCRYPTION_KEK_SECRET}
-      EMAIL_DEK_SECRET: ${EMAIL_DEK_SECRET}
-      PHONE_DEK_SECRET: ${PHONE_DEK_SECRET}
-      EMAIL_FINGERPRINT_SECRET: ${EMAIL_FINGERPRINT_SECRET}
-      PHONE_FINGERPRINT_SECRET: ${PHONE_FINGERPRINT_SECRET}
-      ENCRYPTION_KEY_VERSION: "1"
-      
-      # Rate limiting
-      REDIS_ENABLED: "false"
-      API_KEY_CACHE_TTL: "300000"
-      
-      # Logging
-      LOG_LEVEL: info
-      
-      # Performance
-      NODE_OPTIONS: "--max-old-space-size=512"
-      
-    volumes:
-      - api_logs:/app/logs
-    networks:
-      - mercurio_network
-      - n8n_network  # Connect to existing N8N network
+      # Core Application
+      NODE_ENV: "production"
+      PORT: "3000"
+      GENERIC_TIMEZONE: "America/Sao_Paulo"
+
+      # Database Configuration - Supabase
+      DATABASE_URL: "${SUPABASE_DATABASE_URL}"
+
+      # Encryption & Security (OBRIGATÓRIAS)
+      ENCRYPTION_KEK_SECRET: "${ENCRYPTION_KEK_SECRET}"
+      EMAIL_DEK_SECRET: "${EMAIL_DEK_SECRET}"
+      PHONE_DEK_SECRET: "${PHONE_DEK_SECRET}"
+      EMAIL_FINGERPRINT_SECRET: "${EMAIL_FINGERPRINT_SECRET}"
+      PHONE_FINGERPRINT_SECRET: "${PHONE_FINGERPRINT_SECRET}"
+
+      # Supabase Integration
+      SUPABASE_ENABLED: "true"
+      SUPABASE_URL: "${SUPABASE_URL}"
+      SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY}"
+      SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY}"
+
+      # JWT Configuration
+      JWT_SECRET: "${JWT_SECRET}"
+      JWT_EXPIRES_IN: "24h"
+
+      # Redis Configuration
+      REDIS_ENABLED: "true"
+      REDIS_HOST: "redis_mercurio"
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: "${MERCURIO_REDIS_PASSWORD}"
+      REDIS_URL: "redis://:${MERCURIO_REDIS_PASSWORD}@redis_mercurio:6379"
+
+      # Rate Limiting
+      RATE_LIMIT_ENABLED: "true"
+      RATE_LIMIT_WINDOW_MS: "60000"
+      RATE_LIMIT_MAX_REQUESTS: "1000"
+
+      # CORS Settings
+      CORS_ENABLED: "true"
+      CORS_ORIGIN: "${CORS_ORIGIN}"
+      CORS_METHODS: "POST,GET,PUT,DELETE,OPTIONS,PATCH"
+      CORS_CREDENTIALS: "true"
+
+      # Logging & Monitoring
+      LOG_LEVEL: "INFO,WARN,ERROR"
+      LOG_COLOR: "true"
+      METRICS_ENABLED: "true"
+      PROMETHEUS_METRICS_ENABLED: "true"
+
+      # Feature Flags
+      FEATURE_ANALYTICS_ENABLED: "true"
+      FEATURE_FUNNELS_ENABLED: "true"
+      FEATURE_EXPORTS_ENABLED: "true"
+      FEATURE_REALTIME_ENABLED: "true"
+
+      # Tenant & Workspace Settings
+      TENANT_DEFAULT_PLAN: "starter"
+      TENANT_MAX_PER_USER: "5"
+      WORKSPACE_MAX_PER_TENANT: "10"
+      DEFAULT_DATA_RETENTION_DAYS: "90"
+
+    ports:
+      - "3001:3000"  # Porta local para debug
     depends_on:
-      postgres:
+      redis_mercurio:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
-        reservations:
-          memory: 256M
-          cpus: '0.5'
+      start_period: 60s
     labels:
-      # Traefik labels (if using Traefik for reverse proxy)
       - "traefik.enable=true"
-      - "traefik.http.routers.mercurio-api.rule=Host(`api.yourdomain.com`)"
+      - "traefik.http.routers.mercurio-api.rule=Host(`mercurio-api.ricardotocha.com.br`)"
+      - "traefik.http.routers.mercurio-api.entrypoints=websecure"
       - "traefik.http.routers.mercurio-api.tls=true"
       - "traefik.http.routers.mercurio-api.tls.certresolver=letsencrypt"
       - "traefik.http.services.mercurio-api.loadbalancer.server.port=3000"
-
-  # Redis for rate limiting (optional)
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: >
-      redis-server
-      --appendonly yes
-      --maxmemory 128mb
-      --maxmemory-policy allkeys-lru
-    volumes:
-      - redis_data:/data
     networks:
-      - mercurio_network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    profiles:
-      - redis
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-        reservations:
-          memory: 64M
-    labels:
-      - "traefik.enable=false"
+      - mercurio_internal_network
+      - proxy_network
 
+# VOLUMES
 volumes:
-  postgres_data:
-    driver: local
-  postgres_backups:
-    driver: local
-  redis_data:
-    driver: local
-  api_logs:
-    driver: local
-
-networks:
-  mercurio_network:
-    driver: bridge
-    internal: true  # Internal network - API not directly exposed
-  n8n_network:
-    external: true  # Connect to existing N8N network
-    name: n8n_network  # Adjust to your N8N network name
+  redis_mercurio_data:
