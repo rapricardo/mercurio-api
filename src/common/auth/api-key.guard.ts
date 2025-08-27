@@ -95,6 +95,21 @@ export class ApiKeyGuard implements CanActivate {
 
     // Attach tenant context to request
     request[TENANT_CONTEXT_KEY] = tenantContext
+    // Also populate request context for downstream middlewares/guards
+    try {
+      const reqAny: any = request as any;
+      (reqAny[REQUEST_CONTEXT_KEY] ||= {});
+      reqAny[REQUEST_CONTEXT_KEY].tenantId = tenantContext.tenantId?.toString();
+      reqAny[REQUEST_CONTEXT_KEY].workspaceId = tenantContext.workspaceId?.toString();
+      reqAny[REQUEST_CONTEXT_KEY].apiKeyId = tenantContext.apiKeyId?.toString();
+      const raw: any = reqAny.raw || {};
+      (raw[REQUEST_CONTEXT_KEY] ||= {});
+      raw[REQUEST_CONTEXT_KEY].tenantId = tenantContext.tenantId?.toString();
+      raw[REQUEST_CONTEXT_KEY].workspaceId = tenantContext.workspaceId?.toString();
+      raw[REQUEST_CONTEXT_KEY].apiKeyId = tenantContext.apiKeyId?.toString();
+    } catch {
+      // best-effort
+    }
 
     // Check required scopes
     const requiredScopes = this.reflector.get<string[]>(

@@ -10,6 +10,7 @@ import { ApiKeyService } from './api-key.service';
 import { SupabaseAuthService } from './supabase-auth.service';
 import { UserMappingService } from './user-mapping.service';
 import { TenantContext } from '../types/tenant-context.type';
+import { REQUEST_CONTEXT_KEY } from '../middleware/request-context.middleware';
 
 export interface HybridTenantContext extends TenantContext {
   // API Key auth fields (existing)
@@ -107,6 +108,16 @@ export class HybridAuthGuard implements CanActivate {
     };
 
     request.tenantContext = tenantContext;
+    // Populate request context for downstream middlewares/guards (rate limit, logging)
+    try {
+      const raw: any = (request as any).raw || {};
+      const reqCtx = (raw[REQUEST_CONTEXT_KEY] ||= {});
+      reqCtx.tenantId = tenantContext.tenantId?.toString();
+      reqCtx.workspaceId = tenantContext.workspaceId?.toString();
+      reqCtx.apiKeyId = tenantContext.apiKeyId?.toString();
+    } catch {
+      // best-effort only
+    }
     
     this.logger.debug('API Key authentication successful', {
       tenantId: validation.tenantId.toString(),
@@ -158,6 +169,16 @@ export class HybridAuthGuard implements CanActivate {
     };
 
     request.tenantContext = tenantContext;
+    // Populate request context for downstream middlewares/guards (rate limit, logging)
+    try {
+      const raw: any = (request as any).raw || {};
+      const reqCtx = (raw[REQUEST_CONTEXT_KEY] ||= {});
+      reqCtx.tenantId = tenantContext.tenantId?.toString();
+      reqCtx.workspaceId = tenantContext.workspaceId?.toString();
+      reqCtx.userId = tenantContext.userId;
+    } catch {
+      // best-effort only
+    }
     
     this.logger.debug('JWT authentication successful', {
       userId: validation.user.id,

@@ -47,15 +47,18 @@ export class RateLimitGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<FastifyRequest>();
     const response = context.switchToHttp().getResponse<FastifyReply>();
     
-    // Get request context (includes tenant information)
-    const requestContext = (request.raw as any)[REQUEST_CONTEXT_KEY];
-    
-    if (!requestContext || !requestContext.tenantId) {
+    // Get tenant/req context
+    const requestContext = ((request.raw as any)[REQUEST_CONTEXT_KEY] ||= {});
+    const tenantContext: any = (request as any).tenantContext;
+    const tenantId = tenantContext?.tenantId?.toString() || requestContext.tenantId;
+
+    if (!tenantId) {
       this.logger.warn('Rate limit check skipped - no tenant context available');
       return true;
     }
 
-    const tenantId = requestContext.tenantId;
+    // Backfill tenant info into request context for consistent logging
+    requestContext.tenantId = tenantId;
     const endpoint = rateLimitConfig.endpoint;
     const tier = rateLimitConfig.tier || this.getTenantTier(tenantId); // Default tier resolution
 

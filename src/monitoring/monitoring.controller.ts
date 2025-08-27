@@ -1,7 +1,9 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards, ForbiddenException } from '@nestjs/common';
 import { MetricsService } from '../common/services/metrics.service';
 import { MercurioLogger } from '../common/services/logger.service';
 import { CacheService } from '../common/services/cache.service';
+import { HybridAuthGuard, HybridTenantContext } from '../common/auth/hybrid-auth.guard';
+import { CurrentTenant } from '../common/context/tenant-context.provider';
 
 @Controller('monitoring')
 export class MonitoringController {
@@ -118,7 +120,12 @@ export class MonitoringController {
    * Reset metrics (for testing purposes)
    */
   @Get('reset')
-  resetMetrics() {
+  @UseGuards(HybridAuthGuard)
+  resetMetrics(@CurrentTenant() tenant: HybridTenantContext) {
+    // Restrict destructive action to admin users via JWT auth
+    if (tenant.authType !== 'supabase_jwt' || tenant.userRole !== 'admin') {
+      throw new ForbiddenException('Insufficient permissions to reset metrics');
+    }
     this.metrics.reset();
     this.cache.clear();
 

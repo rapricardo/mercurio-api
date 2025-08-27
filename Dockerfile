@@ -1,8 +1,8 @@
 # Multi-stage build for production optimization
-FROM node:18-alpine AS builder
+FROM node:18-alpine3.18 AS builder
 
-# Install security updates
-RUN apk update && apk upgrade && apk add --no-cache dumb-init
+# Install security updates and required build dependencies
+RUN apk update && apk upgrade && apk add --no-cache dumb-init openssl-dev
 
 WORKDIR /app
 
@@ -25,11 +25,11 @@ RUN npx prisma generate
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine AS production
+FROM node:18-alpine3.18 AS production
 
-# Install security updates and runtime dependencies
+# Install security updates, runtime dependencies, and OpenSSL for Prisma compatibility
 RUN apk update && apk upgrade && \
-    apk add --no-cache dumb-init curl && \
+    apk add --no-cache dumb-init curl openssl && \
     rm -rf /var/cache/apk/*
 
 # Create non-root user for security

@@ -41,16 +41,18 @@ export class RequestContextMiddleware implements NestMiddleware {
     this.metrics.incrementCounter('requests.total');
 
     // Log request start using structured logger
-    this.logger.log('Request started', 
+    this.logger.log(
+      'Request started',
       { requestId },
-      { 
+      {
         category: 'http_request',
         phase: 'start',
         method: req.method,
-        url: req.url,
+        // avoid leaking query params like ?auth= in logs
+        url: (req.url || '').split('?')[0],
         userAgent: req.headers['user-agent'],
-        ip: this.getClientIp(req)
-      }
+        ip: this.getClientIp(req),
+      },
     );
 
     // Log request completion and record metrics
@@ -71,7 +73,7 @@ export class RequestContextMiddleware implements NestMiddleware {
         this.logger.warn('Slow request detected', { requestId }, {
           category: 'performance',
           method: req.method,
-          url: req.url,
+          url: (req.url || '').split('?')[0],
           statusCode: res.statusCode,
           duration,
           threshold: 1000,
@@ -84,7 +86,7 @@ export class RequestContextMiddleware implements NestMiddleware {
         this.logger.debug('Request exceeded p50 latency requirement', { requestId }, {
           category: 'performance',
           method: req.method,
-          url: req.url,
+          url: (req.url || '').split('?')[0],
           duration,
           requirement: 50,
         });
@@ -101,7 +103,7 @@ export class RequestContextMiddleware implements NestMiddleware {
           category: 'http_request',
           phase: 'end',
           method: req.method,
-          url: req.url,
+          url: (req.url || '').split('?')[0],
           statusCode: res.statusCode,
           statusClass: `${Math.floor(res.statusCode / 100)}xx`,
           duration,

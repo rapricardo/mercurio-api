@@ -36,29 +36,38 @@ export class MetricsMiddleware implements NestMiddleware {
 
       // Log slow requests (> 1 second) for monitoring
       if (duration > 1000) {
-        this.logger.warn('Slow request detected', {
-          requestId: requestContext?.requestId,
-        }, {
-          category: 'performance',
-          method: req.method,
-          url: req.url,
-          statusCode,
-          duration,
-          threshold: 1000,
-        });
+        this.logger.warn(
+          'Slow request detected',
+          {
+            requestId: requestContext?.requestId,
+          },
+          {
+            category: 'performance',
+            method: req.method,
+            // avoid leaking query params like ?auth= in logs
+            url: (req.url || '').split('?')[0],
+            statusCode,
+            duration,
+            threshold: 1000,
+          },
+        );
       }
 
       // Log p50 latency violations (> 50ms requirement)
       if (duration > 50) {
-        this.logger.debug('Request exceeded p50 latency requirement', {
-          requestId: requestContext?.requestId,
-        }, {
-          category: 'performance',
-          method: req.method,
-          url: req.url,
-          duration,
-          requirement: 50,
-        });
+        this.logger.debug(
+          'Request exceeded p50 latency requirement',
+          {
+            requestId: requestContext?.requestId,
+          },
+          {
+            category: 'performance',
+            method: req.method,
+            url: (req.url || '').split('?')[0],
+            duration,
+            requirement: 50,
+          },
+        );
       }
     });
 

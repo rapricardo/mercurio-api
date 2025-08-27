@@ -366,8 +366,7 @@ export class AnalyticsRepository {
     const whereConditions = this.buildEventFilters(filters);
     const orderClause = `${pagination.sortBy} ${pagination.sortOrder.toUpperCase()}`;
 
-    const [events, countResult] = await Promise.all([
-      this.prisma.$queryRaw<EventDetailItem[]>`
+    const eventsQuery = `
         SELECT 
           CONCAT('evt_', id) as event_id,
           event_name,
@@ -383,34 +382,55 @@ export class AnalyticsRepository {
         FROM event
         WHERE tenant_id = ${tenantId}
           AND workspace_id = ${workspaceId}
-          AND timestamp >= ${startDate}
-          AND timestamp <= ${endDate}
-          ${Prisma.raw(whereConditions)}
-        ORDER BY ${Prisma.raw(orderClause)}
+          AND timestamp >= '${startDate.toISOString()}'
+          AND timestamp <= '${endDate.toISOString()}'
+          ${whereConditions}
+        ORDER BY ${orderClause}
         LIMIT ${pagination.limit}
         OFFSET ${offset}
-      `,
-      
-      this.prisma.$queryRaw<[{ count: number }]>`
+      `;
+
+    const countQuery = `
         SELECT COUNT(*)::int as count
         FROM event
         WHERE tenant_id = ${tenantId}
           AND workspace_id = ${workspaceId}
-          AND timestamp >= ${startDate}
-          AND timestamp <= ${endDate}
-          ${Prisma.raw(whereConditions)}
-      `,
+          AND timestamp >= '${startDate.toISOString()}'
+          AND timestamp <= '${endDate.toISOString()}'
+          ${whereConditions}
+      `;
+
+    const [events, countResult] = await Promise.all([
+      this.prisma.$queryRawUnsafe<EventDetailItem[]>(eventsQuery),
+      this.prisma.$queryRawUnsafe<[{ count: number }]>(countQuery),
     ]);
 
     const totalCount = countResult[0]?.count || 0;
 
     return {
-      events: events.map(event => ({
+      events: events.map(event => this.convertBigIntToString({
         ...event,
         timestamp: new Date(event.timestamp).toISOString(),
       })),
       totalCount,
     };
+  }
+
+  /**
+   * Helper to convert BigInt values to strings recursively
+   */
+  private convertBigIntToString(obj: any): any {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj === 'bigint') return obj.toString();
+    if (Array.isArray(obj)) return obj.map(item => this.convertBigIntToString(item));
+    if (typeof obj === 'object') {
+      const converted: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        converted[key] = this.convertBigIntToString(value);
+      }
+      return converted;
+    }
+    return obj;
   }
 
   private getTimeFormat(granularity: string): string {

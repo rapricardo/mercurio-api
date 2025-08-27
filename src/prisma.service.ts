@@ -8,13 +8,18 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   private metrics?: MetricsService;
 
   constructor() {
+    // Configure Prisma logs based on environment
+    const enableSqlLogging = process.env.SQL_LOGGING === 'true' || process.env.NODE_ENV === 'development';
+    const prismaLog: Array<{ level: 'query' | 'error' | 'info' | 'warn'; emit: 'event' }> = [];
+    if (enableSqlLogging) {
+      prismaLog.push({ level: 'query', emit: 'event' });
+      prismaLog.push({ level: 'info', emit: 'event' });
+    }
+    prismaLog.push({ level: 'error', emit: 'event' });
+    prismaLog.push({ level: 'warn', emit: 'event' });
+
     super({
-      log: [
-        { level: 'query', emit: 'event' },
-        { level: 'error', emit: 'event' },
-        { level: 'info', emit: 'event' },
-        { level: 'warn', emit: 'event' },
-      ],
+      log: prismaLog,
       datasources: {
         db: {
           url: process.env.DATABASE_URL,

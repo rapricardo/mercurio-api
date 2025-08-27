@@ -149,26 +149,29 @@ export class EncryptionService {
     
     try {
       // Use base64 key directly as 32-byte key
-      const keyBuffer = Buffer.from(type === 'email' ? this.config.emailDekSecret : this.config.phoneDekSecret, 'base64');
-      const key = keyBuffer.length >= 32 ? keyBuffer.slice(0, 32) : Buffer.concat([keyBuffer, Buffer.alloc(32 - keyBuffer.length)]);
-      
+      const keyBuffer = Buffer.from(
+        type === 'email' ? this.config.emailDekSecret : this.config.phoneDekSecret,
+        'base64',
+      );
+      const key =
+        keyBuffer.length >= 32
+          ? keyBuffer.slice(0, 32)
+          : Buffer.concat([keyBuffer, Buffer.alloc(32 - keyBuffer.length)]);
+
       // Generate random IV for GCM (12 bytes recommended)
       const iv = randomBytes(12);
-      
-      // Create cipher
-      const cipher = crypto.createCipher('aes-256-gcm', key.toString('hex'));
-      
+
+      // Create cipher with explicit IV (correct AES-GCM usage)
+      const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+
       // Set Additional Authenticated Data
       cipher.setAAD(Buffer.from(`${type}:${this.config.currentKeyVersion}`));
-      
+
       // Encrypt data
-      const encrypted = Buffer.concat([
-        cipher.update(data, 'utf8'),
-        cipher.final()
-      ]);
-      
+      const encrypted = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
+
       const authTag = cipher.getAuthTag();
-      
+
       // Combine IV + AuthTag + Encrypted Data
       const combined = Buffer.concat([iv, authTag, encrypted]).toString('base64');
 
@@ -198,31 +201,38 @@ export class EncryptionService {
   /**
    * Core decryption method using AES-256-GCM
    */
-  private async decryptData(encryptedData: string, type: 'email' | 'phone', keyVersion?: number): Promise<string> {
+  private async decryptData(
+    encryptedData: string,
+    type: 'email' | 'phone',
+    keyVersion?: number,
+  ): Promise<string> {
     const startTime = Date.now();
     
     try {
       // Use base64 key directly as 32-byte key
-      const keyBuffer = Buffer.from(type === 'email' ? this.config.emailDekSecret : this.config.phoneDekSecret, 'base64');
-      const key = keyBuffer.length >= 32 ? keyBuffer.slice(0, 32) : Buffer.concat([keyBuffer, Buffer.alloc(32 - keyBuffer.length)]);
+      const keyBuffer = Buffer.from(
+        type === 'email' ? this.config.emailDekSecret : this.config.phoneDekSecret,
+        'base64',
+      );
+      const key =
+        keyBuffer.length >= 32
+          ? keyBuffer.slice(0, 32)
+          : Buffer.concat([keyBuffer, Buffer.alloc(32 - keyBuffer.length)]);
       const targetKeyVersion = keyVersion || this.config.currentKeyVersion;
-      
+
       // Parse combined data
       const combined = Buffer.from(encryptedData, 'base64');
       const iv = combined.slice(0, 12); // 12 bytes for GCM IV
       const authTag = combined.slice(12, 28); // 16 bytes for auth tag
       const encrypted = combined.slice(28);
-      
-      // Create decipher
-      const decipher = crypto.createDecipher('aes-256-gcm', key.toString('hex'));
+
+      // Create decipher with explicit IV (correct AES-GCM usage)
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
       decipher.setAAD(Buffer.from(`${type}:${targetKeyVersion}`));
       decipher.setAuthTag(authTag);
-      
+
       // Decrypt data
-      const decrypted = Buffer.concat([
-        decipher.update(encrypted),
-        decipher.final()
-      ]);
+      const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
       
       // Record metrics
       const latency = Date.now() - startTime;
