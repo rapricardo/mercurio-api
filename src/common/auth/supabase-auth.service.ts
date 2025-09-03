@@ -112,17 +112,17 @@ export class SupabaseAuthService {
       }
 
       // Verify JWT signature and decode  
-      // Supabase JWTs use "supabase" as issuer, not the project URL
+      // Supabase JWTs use project URL + /auth/v1 as issuer
       const decoded = jwt.verify(cleanToken, this.jwtSecret, {
         algorithms: ['HS256'],
-        issuer: 'supabase',
+        issuer: `${process.env.SUPABASE_URL}/auth/v1`,
       }) as SupabaseUser;
 
       // Debug actual token issuer - TEMPORARY
       this.logger.log('🎯 JWT Token Debug', {
         actualIssuer: (decoded as any).iss,
-        expectedIssuer: 'supabase',
-        isMatch: (decoded as any).iss === 'supabase',
+        expectedIssuer: `${process.env.SUPABASE_URL}/auth/v1`,
+        isMatch: (decoded as any).iss === `${process.env.SUPABASE_URL}/auth/v1`,
         projectRef: (decoded as any).ref,
         userRole: (decoded as any).role
       });
