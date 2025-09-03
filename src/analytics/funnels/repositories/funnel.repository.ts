@@ -290,7 +290,7 @@ export class FunnelRepository {
       filters: { search, state, includeArchived },
     });
 
-    return { funnels, totalCount };
+    return { funnels, totalCount: Number(totalCount) };
   }
 
   /**
@@ -554,10 +554,10 @@ export class FunnelRepository {
     ]);
 
     return {
-      totalFunnels,
-      draftFunnels,
-      publishedFunnels,
-      archivedFunnels,
+      totalFunnels: Number(totalFunnels),
+      draftFunnels: Number(draftFunnels),
+      publishedFunnels: Number(publishedFunnels),
+      archivedFunnels: Number(archivedFunnels),
     };
   }
 }

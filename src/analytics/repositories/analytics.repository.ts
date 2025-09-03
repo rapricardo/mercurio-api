@@ -25,14 +25,15 @@ export class AnalyticsRepository {
     avgSessionDuration: number;
     bounceRate: number;
   }> {
+    // Use $queryRawUnsafe to avoid pgBouncer prepared statement issues
     const [metrics, topEvent, sessionMetrics] = await Promise.all([
       // Basic counts
-      this.prisma.$queryRaw<[{
+      this.prisma.$queryRawUnsafe<[{
         total_events: number;
         unique_visitors: number;
         total_sessions: number;
         conversions: number;
-      }]>`
+      }]>(`
         SELECT 
           COUNT(*)::int as total_events,
           COUNT(DISTINCT anonymous_id)::int as unique_visitors,
@@ -41,28 +42,28 @@ export class AnalyticsRepository {
         FROM event
         WHERE tenant_id = ${tenantId}
           AND workspace_id = ${workspaceId}
-          AND timestamp >= ${startDate}
-          AND timestamp <= ${endDate}
-      `,
+          AND timestamp >= '${startDate.toISOString()}'
+          AND timestamp <= '${endDate.toISOString()}'
+      `),
 
       // Top event
-      this.prisma.$queryRaw<[{ event_name: string; count: number }]>`
+      this.prisma.$queryRawUnsafe<[{ event_name: string; count: number }]>(`
         SELECT event_name, COUNT(*)::int as count
         FROM event
         WHERE tenant_id = ${tenantId}
           AND workspace_id = ${workspaceId}
-          AND timestamp >= ${startDate}
-          AND timestamp <= ${endDate}
+          AND timestamp >= '${startDate.toISOString()}'
+          AND timestamp <= '${endDate.toISOString()}'
         GROUP BY event_name
         ORDER BY count DESC
         LIMIT 1
-      `,
+      `),
 
-      // Session duration and bounce rate
-      this.prisma.$queryRaw<[{
+      // Session duration and bounce rate - simplified to avoid complex JOINs
+      this.prisma.$queryRawUnsafe<[{
         avg_session_duration: number;
         bounce_rate: number;
-      }]>`
+      }]>(`
         WITH session_stats AS (
           SELECT 
             s.session_id,
@@ -72,19 +73,19 @@ export class AnalyticsRepository {
           LEFT JOIN event e ON s.session_id = e.session_id 
             AND e.tenant_id = s.tenant_id 
             AND e.workspace_id = s.workspace_id
-            AND e.timestamp >= ${startDate}
-            AND e.timestamp <= ${endDate}
+            AND e.timestamp >= '${startDate.toISOString()}'
+            AND e.timestamp <= '${endDate.toISOString()}'
           WHERE s.tenant_id = ${tenantId}
             AND s.workspace_id = ${workspaceId}
-            AND s.started_at >= ${startDate}
-            AND s.started_at <= ${endDate}
+            AND s.started_at >= '${startDate.toISOString()}'
+            AND s.started_at <= '${endDate.toISOString()}'
           GROUP BY s.session_id
         )
         SELECT 
           COALESCE(AVG(CASE WHEN event_count > 1 THEN duration END), 0)::decimal as avg_session_duration,
           (COUNT(CASE WHEN event_count = 1 THEN 1 END)::decimal / NULLIF(COUNT(*), 0) * 100)::decimal as bounce_rate
         FROM session_stats
-      `,
+      `),
     ]);
 
     // Safely handle potentially empty results
@@ -102,13 +103,13 @@ export class AnalyticsRepository {
     };
 
     return {
-      totalEvents: baseMetrics.total_events,
-      uniqueVisitors: baseMetrics.unique_visitors,
-      totalSessions: baseMetrics.total_sessions,
-      conversions: baseMetrics.conversions,
+      totalEvents: Number(baseMetrics.total_events) || 0,
+      uniqueVisitors: Number(baseMetrics.unique_visitors) || 0,
+      totalSessions: Number(baseMetrics.total_sessions) || 0,
+      conversions: Number(baseMetrics.conversions) || 0,
       topEvent: topEventName,
-      avgSessionDuration: Number(sessionStats.avg_session_duration),
-      bounceRate: Number(sessionStats.bounce_rate),
+      avgSessionDuration: Number(sessionStats.avg_session_duration) || 0,
+      bounceRate: Number(sessionStats.bounce_rate) || 0,
     };
   }
 
@@ -381,11 +382,11 @@ export class AnalyticsRepository {
 
     const eventsQuery = `
         SELECT 
-          CONCAT('evt_', id) as event_id,
+          CONCAT('evt_', id::text) as event_id,
           event_name,
           timestamp,
           anonymous_id,
-          lead_id,
+          CASE WHEN lead_id IS NOT NULL THEN lead_id::text ELSE NULL END as lead_id,
           session_id,
           page,
           utm,
@@ -422,9 +423,18 @@ export class AnalyticsRepository {
     const totalCount = (Array.isArray(countResult) && countResult.length > 0 && countResult[0]) ? countResult[0].count : 0;
 
     return {
-      events: Array.isArray(events) ? events.map(event => this.convertBigIntToString({
-        ...event,
+      events: Array.isArray(events) ? events.map(event => ({
+        event_id: event.event_id,
+        event_name: event.event_name,
         timestamp: new Date(event.timestamp).toISOString(),
+        anonymous_id: event.anonymous_id,
+        lead_id: event.lead_id,
+        session_id: event.session_id,
+        page: event.page,
+        utm: event.utm,
+        device: event.device,
+        geo: event.geo,
+        props: event.props,
       })) : [],
       totalCount,
     };
