@@ -7,6 +7,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { FunnelAnalyticsModule } from './analytics/funnels/funnel-analytics.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     FunnelAnalyticsModule,
     TenantsModule,
     WorkspacesModule,
+    OnboardingModule,
   ],
   controllers: [HealthController],
   providers: [],

@@ -92,9 +92,9 @@ export class SupabaseAuthService {
       // Check if token is the anon key itself (development issue)
       if (cleanToken === this.jwtSecret) {
         this.logger.warn('🚨 Received anon key as token - creating mock user for development');
-        // Create a mock user for development when anon key is sent
+        // Create a consistent mock user for development when anon key is sent
         const mockUser: SupabaseUser = {
-          id: 'dev-user-' + Date.now(),
+          id: 'mock-dev-user-12345', // Consistent ID for development
           email: 'dev@mercurio.com',
           name: 'Development User',
           role: 'authenticated',
@@ -102,7 +102,7 @@ export class SupabaseAuthService {
           exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
           iat: Math.floor(Date.now() / 1000),
           iss: 'supabase',
-          sub: 'dev-user-' + Date.now()
+          sub: 'mock-dev-user-12345' // Consistent sub for development
         };
 
         return {
