@@ -83,10 +83,10 @@ export class SupabaseAuthService {
       }
 
       // Verify JWT signature and decode
-      // Supabase JWTs have "supabase" as issuer, not the project URL
+      // Supabase JWTs use the project URL as issuer
       const decoded = jwt.verify(cleanToken, this.jwtSecret, {
         algorithms: ['HS256'],
-        issuer: 'supabase',
+        issuer: process.env.SUPABASE_URL,
       }) as SupabaseUser;
 
       // Check if token is expired
