@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma.service';
 import { MercurioLogger } from '../../common/services/logger.service';
 import { MetricsService } from '../../common/services/metrics.service';
 import { HybridTenantContext } from '../../common/auth/hybrid-auth.guard';
+import { UserMappingService } from '../../common/auth/user-mapping.service';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import { WorkspaceResponseDto, WorkspaceListResponseDto } from '../dto/workspace-response.dto';
@@ -14,6 +15,7 @@ export class WorkspaceService {
     private readonly prisma: PrismaService,
     private readonly logger: MercurioLogger,
     private readonly metrics: MetricsService,
+    private readonly userMappingService: UserMappingService,
   ) {}
 
   async findAll(
@@ -387,10 +389,30 @@ export class WorkspaceService {
           },
         });
 
+        // Auto-grant admin access to workspace creator (JWT users only)
+        if (context.authType === 'supabase_jwt' && context.userId) {
+          // Ensure user profile exists
+          await this.userMappingService.createUserProfile({
+            id: context.userId,
+            email: context.userEmail,
+            name: context.userEmail, // Fallback to email as name
+          });
+
+          // Grant admin access to the new workspace
+          await this.userMappingService.grantWorkspaceAccess(
+            context.userId,
+            tenantIdBigInt,
+            newWorkspace.id,
+            'admin',
+            context.userId // self-granted
+          );
+        }
+
         this.logger.log('Workspace created successfully', {
           workspaceId: newWorkspace.id.toString(),
           workspaceName: newWorkspace.name,
           tenantId: tenantId,
+          createdBy: context.userId,
         });
 
         return newWorkspace;

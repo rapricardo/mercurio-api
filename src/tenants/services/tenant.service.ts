@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma.service';
 import { MercurioLogger } from '../../common/services/logger.service';
 import { MetricsService } from '../../common/services/metrics.service';
 import { HybridTenantContext } from '../../common/auth/hybrid-auth.guard';
+import { UserMappingService } from '../../common/auth/user-mapping.service';
 import { CreateTenantDto } from '../dto/create-tenant.dto';
 import { UpdateTenantDto } from '../dto/update-tenant.dto';
 import { TenantResponseDto, TenantListResponseDto } from '../dto/tenant-response.dto';
@@ -19,6 +20,7 @@ export class TenantService {
     private readonly prisma: PrismaService,
     private readonly logger: MercurioLogger,
     private readonly metrics: MetricsService,
+    private readonly userMappingService: UserMappingService,
   ) {}
 
   async findAll(
@@ -286,9 +288,19 @@ export class TenantService {
           },
         });
 
+        // Ensure user profile exists for JWT users
+        if (context.authType === 'supabase_jwt' && context.userId) {
+          await this.userMappingService.createUserProfile({
+            id: context.userId,
+            email: context.userEmail,
+            name: context.userEmail, // Fallback to email as name
+          });
+        }
+
         this.logger.log('Tenant created successfully', {
           tenantId: newTenant.id.toString(),
           tenantName: newTenant.name,
+          createdBy: context.userId,
         });
 
         return newTenant;
