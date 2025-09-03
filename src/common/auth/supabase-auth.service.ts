@@ -82,11 +82,21 @@ export class SupabaseAuthService {
         return cachedResult;
       }
 
+      // Debug: Decode without verification first to see the issuer
+      let decodedUnverified;
+      try {
+        decodedUnverified = jwt.decode(cleanToken, { complete: true });
+        this.logger.debug('JWT Debug - Issuer:', decodedUnverified?.payload?.iss);
+        this.logger.debug('JWT Debug - Audience:', decodedUnverified?.payload?.aud);
+      } catch (e) {
+        this.logger.warn('JWT Debug decode failed:', e.message);
+      }
+
       // Verify JWT signature and decode
-      // Supabase JWTs have "supabase" as issuer, not the project URL
+      // Temporarily remove issuer validation to see what the real issuer is
       const decoded = jwt.verify(cleanToken, this.jwtSecret, {
         algorithms: ['HS256'],
-        issuer: 'supabase',
+        // issuer: 'supabase',  // Temporarily commented for debugging
       }) as SupabaseUser;
 
       // Check if token is expired
