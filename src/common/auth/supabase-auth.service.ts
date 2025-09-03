@@ -82,12 +82,26 @@ export class SupabaseAuthService {
         return cachedResult;
       }
 
+      // Debug JWT issuer validation - TEMPORARY
+      this.logger.log('🔍 JWT Validation Debug', {
+        expectedIssuer: process.env.SUPABASE_URL,
+        jwtSecretPresent: !!this.jwtSecret,
+        tokenStart: cleanToken.substring(0, 20) + '...'
+      });
+
       // Verify JWT signature and decode
       // Supabase JWTs use the project URL as issuer
       const decoded = jwt.verify(cleanToken, this.jwtSecret, {
         algorithms: ['HS256'],
         issuer: process.env.SUPABASE_URL,
       }) as SupabaseUser;
+
+      // Debug actual token issuer - TEMPORARY
+      this.logger.log('🎯 JWT Token Debug', {
+        actualIssuer: (decoded as any).iss,
+        expectedIssuer: process.env.SUPABASE_URL,
+        isMatch: (decoded as any).iss === process.env.SUPABASE_URL
+      });
 
       // Check if token is expired
       if (decoded.exp && Date.now() >= decoded.exp * 1000) {
