@@ -53,6 +53,12 @@ export class HybridAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<FastifyRequest>();
     const authHeader = request.headers.authorization;
 
+    this.logger.log('🚪 HybridAuthGuard - Processing request', {
+      hasAuthHeader: !!authHeader,
+      authHeaderStart: authHeader ? authHeader.substring(0, 20) + '...' : 'none',
+      url: request.url
+    });
+
     if (!authHeader) {
       throw new UnauthorizedException('Missing authorization header');
     }
@@ -61,6 +67,12 @@ export class HybridAuthGuard implements CanActivate {
       // Detect authentication type by token format
       if (authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
+        
+        this.logger.log('📝 Token detected', {
+          tokenStart: token.substring(0, 20) + '...',
+          isApiKey: token.startsWith('ak_'),
+          isJWT: !token.startsWith('ak_')
+        });
         
         // API Key format: ak_xxxxx
         if (token.startsWith('ak_')) {
@@ -129,11 +141,24 @@ export class HybridAuthGuard implements CanActivate {
   }
 
   private async handleSupabaseJWTAuth(request: FastifyRequest, token: string): Promise<boolean> {
-    this.logger.debug('Processing Supabase JWT authentication');
+    this.logger.log('🔥 Processing Supabase JWT authentication', {
+      tokenStart: token.substring(0, 20) + '...',
+      tokenLength: token.length
+    });
     
     const validation = await this.supabaseAuthService.validateJWT(token);
     
+    this.logger.log('🎯 JWT Validation Result', {
+      isValid: validation.isValid,
+      hasUser: !!validation.user,
+      error: validation.error
+    });
+    
     if (!validation.isValid || !validation.user) {
+      this.logger.error('🚨 JWT Validation Failed', {
+        isValid: validation.isValid,
+        error: validation.error
+      });
       throw new UnauthorizedException(validation.error || 'Invalid JWT token');
     }
 
