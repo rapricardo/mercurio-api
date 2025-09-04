@@ -102,4 +102,20 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const connectionLimit = parseInt(process.env.DB_CONNECTION_LIMIT || '10');
     this.metrics?.recordGauge('database.connections', connectionLimit);
   }
+
+  /**
+   * Reset database connection to fix prepared statement conflicts
+   */
+  async resetConnection(): Promise<void> {
+    try {
+      this.logger.warn('Resetting database connection due to prepared statement conflict...');
+      await this.$disconnect();
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+      await this.$connect();
+      this.logger.log('Database connection reset successfully');
+    } catch (error) {
+      this.logger.error('Failed to reset database connection:', error);
+      throw error;
+    }
+  }
 }

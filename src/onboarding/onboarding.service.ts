@@ -43,14 +43,16 @@ export class OnboardingService {
         throw new ConflictException('User already has workspace access. Please contact support if you need additional workspaces.');
       }
 
-      // Check for duplicate tenant names
-      const existingTenant = await this.prisma.tenant.findFirst({
-        where: { 
-          name: {
-            equals: dto.tenantName.trim(),
-            mode: 'insensitive',
-          }
-        },
+      // Check for duplicate tenant names with retry on prepared statement error
+      const existingTenant = await this.executeWithRetry(async () => {
+        return await this.prisma.tenant.findFirst({
+          where: { 
+            name: {
+              equals: dto.tenantName.trim(),
+              mode: 'insensitive',
+            }
+          },
+        });
       });
 
       if (existingTenant) {
@@ -212,11 +214,13 @@ export class OnboardingService {
    */
   async hasExistingAccess(userId: string): Promise<boolean> {
     try {
-      const existingAccess = await this.prisma.userWorkspaceAccess.findFirst({
-        where: {
-          userId,
-          revokedAt: null
-        }
+      const existingAccess = await this.executeWithRetry(async () => {
+        return await this.prisma.userWorkspaceAccess.findFirst({
+          where: {
+            userId,
+            revokedAt: null
+          }
+        });
       });
 
       return !!existingAccess;
@@ -227,5 +231,39 @@ export class OnboardingService {
       });
       return false;
     }
+  }
+
+  /**
+   * Execute database operation with retry on prepared statement errors
+   */
+  private async executeWithRetry<T>(operation: () => Promise<T>, maxRetries: number = 2): Promise<T> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        const isPreparedStatementError = (error as any)?.code === 'P2017' || 
+                                       (error as any)?.message?.includes('prepared statement') ||
+                                       (error as any)?.message?.includes('already exists');
+        
+        if (isPreparedStatementError && attempt < maxRetries) {
+          this.logger.warn(`🔄 Prepared statement error detected, retrying (${attempt}/${maxRetries})`, {
+            error: (error as any)?.message,
+            attempt
+          });
+          
+          // Reset Prisma connection
+          await this.prisma.resetConnection();
+          
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+          continue;
+        }
+        
+        // Re-throw if not a prepared statement error or max retries reached
+        throw error;
+      }
+    }
+    
+    throw new Error('Max retries reached');
   }
 }
