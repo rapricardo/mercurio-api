@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UnauthorizedException, Logger, Headers } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException, Logger, Headers, ConflictException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { OnboardingService } from './onboarding.service';
 import { SupabaseAuthService } from '../common/auth/supabase-auth.service';
 import { CreateOnboardingDto } from './dto/create-onboarding.dto';
@@ -45,14 +45,45 @@ export class OnboardingController {
     });
 
     // Create tenant and workspace with auto-grant in single transaction
-    const result = await this.onboardingService.createTenantAndWorkspace(dto, validation.user);
+    try {
+      const result = await this.onboardingService.createTenantAndWorkspace(dto, validation.user);
 
-    this.logger.log('🎉 Onboarding completed successfully', {
-      userId: validation.user.id,
-      tenantId: result.tenant.id,
-      workspaceId: result.workspace.id
-    });
+      this.logger.log('🎉 Onboarding completed successfully', {
+        userId: validation.user.id,
+        tenantId: result.tenant.id,
+        workspaceId: result.workspace.id
+      });
 
-    return result;
+      return result;
+
+    } catch (error) {
+      this.logger.error('❌ Controller: Onboarding failed', {
+        userId: validation.user.id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        errorType: error?.constructor?.name
+      });
+
+      // Handle ConflictException from service (already properly mapped)
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+
+      // Handle Prisma validation errors that might escape the service
+      if ((error as any)?.code?.startsWith('P20')) {
+        this.logger.warn('Prisma error escaped service layer', { 
+          code: (error as any).code,
+          message: error instanceof Error ? error.message : 'Unknown error' 
+        });
+        throw new BadRequestException('Invalid data provided. Please check your input and try again.');
+      }
+
+      // Handle any other unexpected errors
+      this.logger.error('Unexpected error in onboarding', {
+        error: error instanceof Error ? error.stack : error,
+        userId: validation.user.id
+      });
+      
+      throw new InternalServerErrorException('An unexpected error occurred during onboarding. Please try again or contact support.');
+    }
   }
 }

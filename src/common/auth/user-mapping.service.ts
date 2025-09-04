@@ -362,6 +362,13 @@ export class UserMappingService {
   }
 
   /**
+   * Public method to invalidate user cache (for external services like onboarding)
+   */
+  public invalidateUser(userId: string): void {
+    this.invalidateUserCache(userId);
+  }
+
+  /**
    * Clear user mapping cache
    */
   clearCache(): void {

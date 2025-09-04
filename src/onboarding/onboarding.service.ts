@@ -36,6 +36,13 @@ export class OnboardingService {
     });
 
     try {
+      // Check if user already has workspace access (prevent duplicate onboarding)
+      const hasExistingAccess = await this.hasExistingAccess(user.id);
+      if (hasExistingAccess) {
+        this.logger.warn('🚫 User already has workspace access', { userId: user.id });
+        throw new ConflictException('User already has workspace access. Please contact support if you need additional workspaces.');
+      }
+
       // Check for duplicate tenant names
       const existingTenant = await this.prisma.tenant.findFirst({
         where: { 
@@ -165,6 +172,10 @@ export class OnboardingService {
         processingTimeMs: processingTime
       });
 
+      // Invalidate user mapping cache to ensure fresh access data
+      this.userMappingService.invalidateUser(user.id);
+      this.logger.debug('🗑️ User cache invalidated after onboarding', { userId: user.id });
+
       return response;
 
     } catch (error) {
@@ -172,10 +183,26 @@ export class OnboardingService {
         userId: user.id,
         tenantName: dto.tenantName,
         workspaceName: dto.workspaceName,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: (error as any)?.code
       });
 
       this.metrics.incrementCounter('onboarding_errors');
+
+      // Handle Prisma-specific errors
+      if ((error as any)?.code === 'P2002') {
+        // Unique constraint violation
+        const target = (error as any)?.meta?.target;
+        if (target?.includes('name')) {
+          throw new ConflictException(`A ${target.includes('tenant') ? 'company' : 'workspace'} with this name already exists. Please choose a different name.`);
+        }
+        if (target?.includes('unique_user_workspace')) {
+          throw new ConflictException('User already has access to this workspace.');
+        }
+        throw new ConflictException('A record with these details already exists.');
+      }
+
+      // Re-throw other errors as-is (including ConflictException from hasExistingAccess)
       throw error;
     }
   }
