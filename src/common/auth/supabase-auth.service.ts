@@ -82,11 +82,14 @@ export class SupabaseAuthService {
         return cachedResult;
       }
 
-      // Debug JWT issuer validation - TEMPORARY
+      // Debug JWT issuer validation - ENHANCED TEMPORARY
       this.logger.log('🔍 JWT Validation Debug', {
         jwtSecretPresent: !!this.jwtSecret,
         tokenStart: cleanToken.substring(0, 20) + '...',
-        isAnonKey: cleanToken === this.jwtSecret
+        tokenLength: cleanToken.length,
+        isAnonKey: cleanToken === this.jwtSecret,
+        expectedIssuer: `${process.env.SUPABASE_URL}/auth/v1`,
+        supabaseUrl: process.env.SUPABASE_URL
       });
 
       // Check if token is the anon key itself (development issue)
@@ -169,8 +172,13 @@ export class SupabaseAuthService {
       return result;
 
     } catch (error) {
-      this.logger.warn('JWT validation failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+      this.logger.error('🚨 JWT validation failed - ENHANCED DEBUG', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+        stack: error instanceof Error ? error.stack : 'No stack',
+        tokenStart: token ? token.substring(0, 20) + '...' : 'No token',
+        jwtSecret: this.jwtSecret ? 'Present' : 'Missing',
+        supabaseUrl: process.env.SUPABASE_URL
       });
 
       const result = { 

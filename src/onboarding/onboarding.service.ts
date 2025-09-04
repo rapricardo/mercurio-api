@@ -61,7 +61,6 @@ export class OnboardingService {
           data: {
             name: dto.tenantName.trim(),
             status: 'active',
-            ...(dto.tenantDescription && { description: dto.tenantDescription }),
           },
         });
 
@@ -75,8 +74,6 @@ export class OnboardingService {
           data: {
             tenantId: newTenant.id,
             name: dto.workspaceName.trim(),
-            ...(dto.workspaceDescription && { description: dto.workspaceDescription }),
-            ...(dto.workspaceEnvironment && { environment: dto.workspaceEnvironment }),
           },
         });
 
@@ -145,8 +142,6 @@ export class OnboardingService {
           id: result.workspace.id.toString(),
           tenantId: result.workspace.tenantId.toString(),
           name: result.workspace.name,
-          description: (result.workspace as any).description || undefined,
-          environment: (result.workspace as any).environment || undefined,
           createdAt: result.workspace.createdAt.toISOString(),
         },
         userAccess: {

@@ -9,8 +9,6 @@ export interface OnboardingWorkspaceDto {
   id: string;
   tenantId: string;
   name: string;
-  description?: string;
-  environment?: string;
   createdAt: string;
 }
 
