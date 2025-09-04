@@ -43,6 +43,20 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     await this.$connect();
     this.logger.log('Database connected successfully');
     
+    // Detect common PgBouncer misconfiguration and warn early
+    try {
+      const url = process.env.DATABASE_URL || '';
+      if (url.startsWith('postgres') && url.includes('pooler.supabase.com')) {
+        const hasPgBouncerParam = /[?&]pgbouncer=true(&|$)/.test(url);
+        const isPoolerPort = /:(6543)\//.test(url);
+        if (isPoolerPort && !hasPgBouncerParam) {
+          this.logger.warn('Detected Supabase Pooler (port 6543) without pgbouncer=true. Add ?pgbouncer=true&connection_limit=1 to DATABASE_URL to avoid prepared statement errors (42P05).');
+        }
+      }
+    } catch (e) {
+      // best effort warning only
+    }
+
     // Record initial connection count
     this.updateConnectionCount();
   }

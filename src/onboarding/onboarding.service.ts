@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, ConflictException, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { MercurioLogger } from '../common/services/logger.service';
 import { MetricsService } from '../common/services/metrics.service';
@@ -59,19 +59,20 @@ export class OnboardingService {
         throw new ConflictException(`Tenant with name "${dto.tenantName}" already exists`);
       }
 
-      // Atomic transaction: create tenant + workspace + user access
-      const result = await this.prisma.$transaction(async (tx) => {
-        this.logger.log('📦 Creating tenant in transaction', {
-          tenantName: dto.tenantName.trim()
-        });
+      // Atomic transaction: create tenant + workspace + user access (with retry for PgBouncer issues)
+      const result = await this.executeWithRetry(async () => {
+        return await this.prisma.$transaction(async (tx) => {
+          this.logger.log('📦 Creating tenant in transaction', {
+            tenantName: dto.tenantName.trim()
+          });
 
-        // 1. Create tenant
-        const newTenant = await tx.tenant.create({
-          data: {
-            name: dto.tenantName.trim(),
-            status: 'active',
-          },
-        });
+          // 1. Create tenant
+          const newTenant = await tx.tenant.create({
+            data: {
+              name: dto.tenantName.trim(),
+              status: 'active',
+            },
+          });
 
         this.logger.log('✅ Tenant created', {
           tenantId: newTenant.id.toString(),
@@ -137,6 +138,7 @@ export class OnboardingService {
           workspace: newWorkspace,
           userAccess
         };
+        });
       });
 
       // Build response
@@ -202,6 +204,13 @@ export class OnboardingService {
           throw new ConflictException('User already has access to this workspace.');
         }
         throw new ConflictException('A record with these details already exists.');
+      }
+
+      // Map PgBouncer prepared statement conflicts to 503 with guidance
+      const message = (error as any)?.message || '';
+      if (message.includes('prepared statement') || message.includes('already exists')) {
+        this.logger.error('Detected PgBouncer prepared statement conflict. Check DATABASE_URL params (pgbouncer=true & connection_limit=1).');
+        throw new ServiceUnavailableException('Database routing issue detected (PgBouncer prepared statements). Please try again and contact support if it persists.');
       }
 
       // Re-throw other errors as-is (including ConflictException from hasExistingAccess)
