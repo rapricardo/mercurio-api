@@ -1,8 +1,9 @@
-import { Controller, Post, Body, UnauthorizedException, Logger, Headers, ConflictException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Get, Post, Body, UnauthorizedException, Logger, Headers, ConflictException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { OnboardingService } from './onboarding.service';
 import { SupabaseAuthService } from '../common/auth/supabase-auth.service';
 import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { OnboardingResponseDto } from './dto/onboarding-response.dto';
+import { OnboardingEligibilityDto } from '../common/auth/dto/user-status.dto';
 
 @Controller('v1/onboarding')
 export class OnboardingController {
@@ -12,6 +13,70 @@ export class OnboardingController {
     private readonly onboardingService: OnboardingService,
     private readonly supabaseAuthService: SupabaseAuthService,
   ) {}
+
+  @Get('eligibility')
+  async checkOnboardingEligibility(
+    @Headers('authorization') authHeader?: string
+  ): Promise<OnboardingEligibilityDto> {
+    this.logger.log('🔍 Checking onboarding eligibility');
+
+    // Validate JWT
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Missing or invalid authorization header');
+    }
+
+    const token = authHeader.substring(7);
+    const validation = await this.supabaseAuthService.validateJWT(token);
+
+    if (!validation.isValid || !validation.user) {
+      throw new UnauthorizedException(validation.error || 'Invalid JWT token');
+    }
+
+    try {
+      // Check if user already has workspace access
+      const hasExistingAccess = await this.onboardingService.hasExistingAccess(validation.user.id);
+      
+      if (hasExistingAccess) {
+        this.logger.log('✅ User already has workspace access', { userId: validation.user.id });
+        
+        return {
+          eligible: false,
+          reason: 'User already has workspace access',
+          nextAction: 'dashboard',
+          context: {
+            canCreateAdditionalWorkspace: true, // Could be configurable per plan
+          },
+        };
+      }
+
+      this.logger.log('✅ User is eligible for onboarding', { userId: validation.user.id });
+      
+      return {
+        eligible: true,
+        reason: 'User has no workspace access and can proceed with onboarding',
+        nextAction: 'onboard',
+        context: {
+          existingWorkspaceCount: 0,
+        },
+      };
+
+    } catch (error) {
+      this.logger.error('❌ Error checking onboarding eligibility', {
+        userId: validation.user.id,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+
+      // Return safe response in case of database errors
+      return {
+        eligible: true,
+        reason: 'Unable to verify existing access, allowing onboarding attempt',
+        nextAction: 'onboard',
+        context: {
+          existingWorkspaceCount: 0,
+        },
+      };
+    }
+  }
 
   @Post()
   async createTenantAndWorkspace(

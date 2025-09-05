@@ -423,9 +423,22 @@ Structured JSON logs with request correlation IDs:
 - Request correlation IDs for tracing
 - Input validation with class-validator
 
-## 📚 Development
+## 📚 Documentation
 
-### Project Structure
+### **For Developers**
+- **[Frontend Integration Guide](docs/frontend-integration-guide.md)** - Complete integration guide for frontend developers
+- **[Complete API Reference](docs/api-endpoints-complete.md)** - All endpoints with examples and responses
+- **[Features Documentation](docs/features/)** - Feature-by-feature specifications
+
+### **Key Features**
+- **[User Onboarding](docs/features/onboarding/)** - First-time user setup and workspace creation
+- **[Event Tracking](docs/features/ingestion/)** - Real-time analytics event ingestion
+- **[Identity Management](docs/features/identity/)** - User identification and linking
+- **[Multi-tenant Architecture](docs/features/workspaces/)** - Workspace and tenant management
+
+### **Development**
+
+#### Project Structure
 ```
 src/
 ├── common/           # Shared modules
@@ -439,7 +452,7 @@ src/
 └── monitoring/      # Health checks, metrics
 ```
 
-### Contributing
+#### Contributing
 1. Fork the repository
 2. Create feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit changes (`git commit -m 'Add amazing feature'`)
@@ -452,9 +465,10 @@ This project is licensed under UNLICENSED - see the [LICENSE](LICENSE) file for 
 
 ## 🆘 Support
 
-- **Documentation**: [API Documentation](docs/api/)
+- **[Complete Documentation](docs/)** - Technical documentation and feature specs
+- **[Frontend Integration](docs/frontend-integration-guide.md)** - Integration guide for frontend teams
+- **[API Reference](docs/api-endpoints-complete.md)** - Complete API documentation
 - **Issues**: [GitHub Issues](https://github.com/your-username/mercurio-api/issues)
-- **Email**: support@mercurio.com
 
 ---
 

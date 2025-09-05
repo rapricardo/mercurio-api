@@ -14,6 +14,24 @@ Objetivo: documentar cada feature do Mercurio com contexto, regras, contratos e 
 - Template: use o [template de feature](./_template/README.md).
 - Versionamento: mudanças incompatíveis devem criar nova versão ou seção “Breaking Changes”.
 
+## Features Disponíveis
+
+### 🔐 **Authentication & Access**
+- **[Onboarding](./onboarding/)** ✅ - First-time user setup with tenant/workspace creation
+- **[Authentication](./authentication/)** - Hybrid auth system (JWT + API Keys)
+- **[Workspaces](./workspaces/)** - Multi-tenant workspace management
+- **[Tenants](./tenants/)** - Organization/company management
+
+### 📊 **Analytics & Data**
+- **[Ingestion](./ingestion/)** - Event ingestion and processing
+- **[Identity](./identity/)** - User identity resolution and tracking
+- **[Funnels](./funnels/)** - Funnel analysis and conversion tracking
+- **[Analytics](./analytics/)** - Core analytics capabilities
+
+### 🛠️ **Platform**
+- **[Health](./health/)** - System health checks and monitoring
+- **[Monitoring](./monitoring/)** - Application metrics and observability
+
 ## Conteúdo mínimo por feature
 - Contexto e objetivos (Goals / Non‑Goals)
 - Personas / User stories

@@ -40,7 +40,11 @@ export class OnboardingService {
       const hasExistingAccess = await this.hasExistingAccess(user.id);
       if (hasExistingAccess) {
         this.logger.warn('🚫 User already has workspace access', { userId: user.id });
-        throw new ConflictException('User already has workspace access. Please contact support if you need additional workspaces.');
+        throw new ConflictException(
+          'You already have access to a workspace and don\'t need to complete onboarding again. ' +
+          'Please go to your dashboard to access your existing workspace(s). ' +
+          'If you need to create additional workspaces, please contact support.'
+        );
       }
 
       // Check for duplicate tenant names with retry on prepared statement error
@@ -56,7 +60,10 @@ export class OnboardingService {
       });
 
       if (existingTenant) {
-        throw new ConflictException(`Tenant with name "${dto.tenantName}" already exists`);
+        throw new ConflictException(
+          `A company with the name "${dto.tenantName}" already exists. ` +
+          'Please choose a different company name and try again.'
+        );
       }
 
       // Atomic transaction: create tenant + workspace + user access (with retry for PgBouncer issues)

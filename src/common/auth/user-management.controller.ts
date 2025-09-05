@@ -15,6 +15,7 @@ import { FastifyRequest } from 'fastify';
 import { HybridAuthGuard, HybridTenantContext } from './hybrid-auth.guard';
 import { UserMappingService } from './user-mapping.service';
 import { PrismaService } from '../../prisma.service';
+import { UserStatusDto, PrimaryWorkspaceDto } from './dto/user-status.dto';
 
 interface GrantAccessDto {
   userId: string;
@@ -87,6 +88,96 @@ export class UserManagementController {
         role: access.role,
       })) || [],
       scopes: context.scopes,
+    };
+  }
+
+  @Get('me/status')
+  async getUserStatus(@Req() request: FastifyRequest): Promise<UserStatusDto> {
+    const context = request.tenantContext as HybridTenantContext;
+
+    // Handle API key authentication
+    if (context.authType === 'api_key') {
+      const workspace = await this.prisma.workspace.findUnique({
+        where: { id: context.workspaceId },
+        include: { tenant: true }
+      });
+
+      return {
+        needsOnboarding: false,
+        hasWorkspaces: true,
+        workspaceCount: 1,
+        authStatus: 'api_key',
+        primaryWorkspace: workspace ? {
+          tenantId: workspace.tenantId.toString(),
+          workspaceId: workspace.id.toString(),
+          tenantName: workspace.tenant.name,
+          workspaceName: workspace.name,
+          role: 'api_key',
+          grantedAt: new Date().toISOString(),
+        } : undefined,
+      };
+    }
+
+    // Handle JWT authentication - user must be authenticated to reach this point
+    if (!context.userId) {
+      return {
+        needsOnboarding: true,
+        hasWorkspaces: false,
+        workspaceCount: 0,
+        authStatus: 'authenticated',
+      };
+    }
+
+    // Get user profile and workspace access
+    const [userProfile, workspaceAccess] = await Promise.all([
+      this.prisma.userProfile.findUnique({
+        where: { id: context.userId }
+      }),
+      this.prisma.userWorkspaceAccess.findMany({
+        where: {
+          userId: context.userId,
+          revokedAt: null,
+        },
+        include: {
+          workspace: {
+            include: { tenant: true }
+          }
+        },
+        orderBy: { grantedAt: 'asc' }
+      })
+    ]);
+
+    const hasWorkspaces = workspaceAccess.length > 0;
+    
+    // Determine primary workspace (first one granted, usually from onboarding)
+    let primaryWorkspace: PrimaryWorkspaceDto | undefined;
+    if (hasWorkspaces && workspaceAccess[0]) {
+      const access = workspaceAccess[0];
+      primaryWorkspace = {
+        tenantId: access.tenantId.toString(),
+        workspaceId: access.workspaceId.toString(),
+        tenantName: access.workspace.tenant.name,
+        workspaceName: access.workspace.name,
+        role: access.role,
+        grantedAt: access.grantedAt.toISOString(),
+      };
+    }
+
+    return {
+      needsOnboarding: !hasWorkspaces,
+      hasWorkspaces,
+      workspaceCount: workspaceAccess.length,
+      authStatus: 'authenticated',
+      primaryWorkspace,
+      user: userProfile ? {
+        id: userProfile.id,
+        email: userProfile.email,
+        name: userProfile.name || undefined,
+        lastLoginAt: userProfile.lastLoginAt?.toISOString(),
+      } : {
+        id: context.userId,
+        email: context.userEmail || 'unknown@example.com',
+      },
     };
   }
 
