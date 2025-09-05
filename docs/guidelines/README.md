@@ -17,12 +17,15 @@ Objetivo: concentrar práticas e recomendações transversais (código, API, tra
 - DB Style: Postgres, nomes, índices, migrações — [db-style.md](./db-style.md)
 - Docs Style: estrutura, nomenclatura, status, templates — [docs-style.md](./docs-style.md)
 - Git & PR: branches, commits, PRs, releases — [git-style.md](./git-style.md)
+ - Segurança/Privacidade: PII, consentimento, logs, JWT Supabase, PgBouncer — [security-privacy.md](./security-privacy.md)
+ - Operação DB (PgBouncer/Prisma): URL correta, 42P05 e checklist — [operational-db.md](./operational-db.md)
 
 ## Antes de contribuir
 - Leia o guia do repositório: [AGENTS.md](../../AGENTS.md) (estrutura, comandos, padrões e PRs).
 - Garanta qualidade local: `npm run check` (lint + typecheck + format:check).
 - API/DB: revise e nomeie migrações com cuidado (`apps/api` → Prisma). Consulte [database-migrations.md](./database-migrations.md).
 - Rastreabilidade: siga [tracking.md](./tracking.md) e as regras de PII em [security-privacy.md](./security-privacy.md).
+ - Autenticação Híbrida: para detalhes, ver [features/authentication/hybrid-auth-guide.md](../features/authentication/hybrid-auth-guide.md) e o resumo em [security-privacy.md](./security-privacy.md).
 
 ## Como contribuir
 - Crie um novo arquivo nesta pasta para cada guideline temática.

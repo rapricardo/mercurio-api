@@ -7,18 +7,24 @@ This document establishes comprehensive guidelines for database migrations in th
 ## Migration Naming Conventions
 
 ### File Structure
-All migrations must follow this exact naming pattern:
+All migrations must follow one of the supported patterns below. Prefer Prisma default naming in this repo.
 ```
+# Prisma default (adotado no repo)
+20250825230603_init/
+└── migration.sql
+
+# Alternativo (legado): timestamp + descrição
 YYYYMMDD_HHMMSS_descricao_da_mudanca/
 ├── migration.sql
 └── (optional) rollback.sql
 ```
 
 ### Naming Rules
-1. **Timestamp Format**: `YYYYMMDD_HHMMSS` using UTC time
-2. **Description**: Use snake_case, be descriptive but concise
-3. **Language**: Portuguese for consistency with codebase
-4. **Max Length**: Keep total filename under 100 characters
+1. **Timestamp Format**: `YYYYMMDDHHMMSS` (Prisma) ou `YYYYMMDD_HHMMSS` (legado), UTC
+2. **Description**: Use snake_case, descritivo e conciso (quando aplicável)
+3. **Language**: Português para consistência
+4. **Max Length**: Até 100 caracteres
+5. **Repo Policy**: Preferir o padrão Prisma (timestamp contínuo + rótulo curto como `init`/`add_*`).
 
 ### Examples
 ```
