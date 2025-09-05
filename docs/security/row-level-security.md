@@ -67,14 +67,14 @@ has_workspace_access(workspace_id, required_role) → boolean
 
 ```typescript
 import { PrismaRLSService, RLSContext } from '../common/services/prisma-rls.service';
-import { RLSContext as RLSContextDecorator } from '../common/decorators/rls-context.decorator';
+import { GetRLSContext } from '../common/decorators/rls-context.decorator';
 
 @Controller('events')
 export class EventsController {
   constructor(private readonly prismaRLS: PrismaRLSService) {}
 
   @Get()
-  async getEvents(@RLSContextDecorator() rlsContext: RLSContext) {
+  async getEvents(@GetRLSContext() rlsContext: RLSContext) {
     // Create context-aware Prisma client
     const prisma = this.prismaRLS.createContextualClient(rlsContext);
     

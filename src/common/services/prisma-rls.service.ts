@@ -29,12 +29,20 @@ export class PrismaRLSService {
 
     // Set session variables for RLS policies
     try {
-      await this.prisma.$executeRaw`
-        SELECT set_config('app.current_tenant_id', ${context.tenantId}, true),
-               set_config('app.current_workspace_id', ${context.workspaceId}, true),
-               set_config('app.current_user_role', ${context.userRole}, true)
-               ${context.userId ? this.prisma.$queryRaw`, set_config('app.current_user_id', ${context.userId}, true)` : this.prisma.$queryRaw``};
-      `;
+      if (context.userId) {
+        await this.prisma.$executeRaw`
+          SELECT set_config('app.current_tenant_id', ${context.tenantId}, true),
+                 set_config('app.current_workspace_id', ${context.workspaceId}, true),
+                 set_config('app.current_user_role', ${context.userRole}, true),
+                 set_config('app.current_user_id', ${context.userId}, true);
+        `;
+      } else {
+        await this.prisma.$executeRaw`
+          SELECT set_config('app.current_tenant_id', ${context.tenantId}, true),
+                 set_config('app.current_workspace_id', ${context.workspaceId}, true),
+                 set_config('app.current_user_role', ${context.userRole}, true);
+        `;
+      }
       
       this.logger.debug('RLS session variables applied', {
         tenantId: context.tenantId,

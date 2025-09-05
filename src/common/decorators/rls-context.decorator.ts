@@ -1,12 +1,12 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { FastifyRequest } from 'fastify';
-import { PrismaRLSService, RLSContext } from '../services/prisma-rls.service';
+import { PrismaRLSService, type RLSContext } from '../services/prisma-rls.service';
 
 /**
  * Parameter decorator to extract RLS context from request
- * Usage: @RLSContext() rlsContext: RLSContext
+ * Usage: @GetRLSContext() rlsContext: RLSContext
  */
-export const RLSContext = createParamDecorator(
+export const GetRLSContext = createParamDecorator(
   (data: unknown, ctx: ExecutionContext): RLSContext | null => {
     const request = ctx.switchToHttp().getRequest<FastifyRequest>();
     return PrismaRLSService.extractRLSContext(request);
