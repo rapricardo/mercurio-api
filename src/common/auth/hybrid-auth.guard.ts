@@ -120,6 +120,14 @@ export class HybridAuthGuard implements CanActivate {
     };
 
     request.tenantContext = tenantContext;
+    
+    // Set RLS session variables for database-level security
+    await this.setRLSSessionVariables(request, {
+      tenantId: validation.tenantId.toString(),
+      workspaceId: validation.workspaceId.toString(),
+      userRole: 'api_key'
+    });
+    
     // Populate request context for downstream middlewares/guards (rate limit, logging)
     try {
       const raw: any = (request as any).raw || {};
@@ -194,6 +202,15 @@ export class HybridAuthGuard implements CanActivate {
     };
 
     request.tenantContext = tenantContext;
+    
+    // Set RLS session variables for database-level security
+    await this.setRLSSessionVariables(request, {
+      tenantId: userMapping.defaultWorkspace.tenantId.toString(),
+      workspaceId: userMapping.defaultWorkspace.workspaceId.toString(),
+      userRole: userMapping.workspaceAccess[0]?.role || 'viewer',
+      userId: validation.user.id
+    });
+    
     // Populate request context for downstream middlewares/guards (rate limit, logging)
     try {
       const raw: any = (request as any).raw || {};
@@ -214,6 +231,41 @@ export class HybridAuthGuard implements CanActivate {
     });
 
     return true;
+  }
+
+  /**
+   * Sets RLS session variables for database-level security
+   * These variables are used by our RLS policies to enforce tenant/workspace isolation
+   */
+  private async setRLSSessionVariables(request: FastifyRequest, context: {
+    tenantId: string;
+    workspaceId: string;
+    userRole: string;
+    userId?: string;
+  }): Promise<void> {
+    try {
+      // Store RLS context in request for database queries
+      // This will be used by Prisma/database queries to set session variables
+      (request as any).rlsContext = {
+        tenantId: context.tenantId,
+        workspaceId: context.workspaceId,
+        userRole: context.userRole,
+        userId: context.userId
+      };
+      
+      this.logger.debug('RLS session variables set', {
+        tenantId: context.tenantId,
+        workspaceId: context.workspaceId,
+        userRole: context.userRole,
+        userId: context.userId
+      });
+    } catch (error) {
+      this.logger.error('Failed to set RLS session variables', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        context
+      });
+      // Don't throw - this is a security enhancement, not a blocking requirement
+    }
   }
 
   private mapRoleToScopes(role: string): string[] {
