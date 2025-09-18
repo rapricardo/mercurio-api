@@ -26,6 +26,7 @@ model Tenant {
   funnels           Funnel[]
   funnelUserStates  FunnelUserState[]
   userWorkspaceAccess UserWorkspaceAccess[]
+  userInvites       UserInvite[]
 
   @@map("tenant")
 }
@@ -343,4 +344,26 @@ model UserWorkspaceAccess {
   @@index([tenantId, workspaceId])
   @@index([tenantId, workspaceId, role])
   @@map("user_workspace_access")
+}
+
+model UserInvite {
+  id          BigInt    @id @default(autoincrement())
+  tenantId    BigInt    @map("tenant_id")
+  email       String    @db.VarChar(255)
+  role        String    @db.VarChar(50) // admin, editor, viewer
+  inviteToken String    @unique @map("invite_token") @db.VarChar(255)
+  invitedBy   String    @map("invited_by") // Supabase UUID of inviter
+  createdAt   DateTime  @default(now()) @map("created_at")
+  expiresAt   DateTime  @map("expires_at")
+  acceptedAt  DateTime? @map("accepted_at")
+  acceptedBy  String?   @map("accepted_by") // Supabase UUID when accepted
+  
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email], name: "unique_tenant_email_invite")
+  @@index([tenantId])
+  @@index([inviteToken])
+  @@index([email])
+  @@index([expiresAt])
+  @@map("user_invite")
 }

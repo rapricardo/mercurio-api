@@ -668,6 +668,98 @@ export class WorkspaceService {
     }
   }
 
+  async getDataImpact(
+    tenantId: string,
+    workspaceId: string, 
+    context: HybridTenantContext
+  ): Promise<{
+    apiKeys: number;
+    events: number;
+    funnels: number;
+    users: number;
+  }> {
+    const startTime = Date.now();
+
+    try {
+      const tenantIdBigInt = BigInt(tenantId);
+      const workspaceIdBigInt = BigInt(workspaceId);
+      
+      this.logger.log('Getting workspace data impact', {
+        tenantId,
+        workspaceId,
+        authType: context.authType,
+        userId: context.userId,
+      });
+
+      // Check authorization
+      await this.validateWorkspaceAccess(tenantIdBigInt, workspaceIdBigInt, context);
+
+      // Check if workspace exists and belongs to tenant
+      const workspace = await this.prisma.workspace.findUnique({
+        where: { id: workspaceIdBigInt },
+        select: { id: true, tenantId: true },
+      });
+
+      if (!workspace) {
+        throw new NotFoundException(`Workspace with ID ${workspaceId} not found`);
+      }
+
+      if (workspace.tenantId !== tenantIdBigInt) {
+        throw new NotFoundException(`Workspace with ID ${workspaceId} not found in tenant ${tenantId}`);
+      }
+
+      // Get real counts from database
+      const [apiKeysCount, eventsCount, funnelsCount, usersCount] = await Promise.all([
+        this.prisma.apiKey.count({
+          where: { 
+            workspaceId: workspaceIdBigInt,
+            revokedAt: null 
+          }
+        }),
+        this.prisma.event.count({
+          where: { workspaceId: workspaceIdBigInt }
+        }),
+        this.prisma.funnel.count({
+          where: { 
+            workspaceId: workspaceIdBigInt,
+            archivedAt: null 
+          }
+        }),
+        this.prisma.userWorkspaceAccess.count({
+          where: { 
+            workspaceId: workspaceIdBigInt,
+            revokedAt: null 
+          }
+        })
+      ]);
+
+      const result = {
+        apiKeys: apiKeysCount,
+        events: eventsCount,
+        funnels: funnelsCount,
+        users: usersCount
+      };
+
+      this.logger.log('Workspace data impact retrieved', {
+        tenantId,
+        workspaceId,
+        impact: result,
+      });
+
+      // Record metrics
+      const processingTime = Date.now() - startTime;
+      this.metrics.recordLatency('workspace_data_impact_processing_time', processingTime);
+      this.metrics.incrementCounter('workspace_data_impact_requests');
+
+      return result;
+
+    } catch (error) {
+      this.logger.error('Error getting workspace data impact', error instanceof Error ? error : new Error(String(error)), { tenantId, workspaceId });
+      this.metrics.incrementCounter('workspace_data_impact_errors');
+      throw error;
+    }
+  }
+
   /**
    * Validate if the current user has access to the specified tenant
    */

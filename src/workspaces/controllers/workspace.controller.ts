@@ -318,4 +318,60 @@ export class WorkspaceController {
     const context = request.tenantContext as HybridTenantContext;
     return this.workspaceService.delete(tenantId, workspaceId, context);
   }
+
+  @Get(':workspaceId/data-impact')
+  @ApiOperation({
+    summary: 'Get workspace data impact',
+    description: 'Retrieve data impact information for workspace deletion - shows how many API keys, events, funnels, and users would be affected.',
+  })
+  @ApiParam({
+    name: 'tenantId',
+    type: 'string',
+    description: 'Tenant ID',
+    example: '1',
+  })
+  @ApiParam({
+    name: 'workspaceId',
+    type: 'string',
+    description: 'Workspace ID',
+    example: '1',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Data impact retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        apiKeys: { type: 'number', example: 4 },
+        events: { type: 'number', example: 1250 },
+        funnels: { type: 'number', example: 3 },
+        users: { type: 'number', example: 15 },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing authentication',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - No access to this workspace',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Workspace or tenant not found',
+  })
+  async getDataImpact(
+    @Param('tenantId') tenantId: string,
+    @Param('workspaceId') workspaceId: string,
+    @Req() request: FastifyRequest,
+  ): Promise<{
+    apiKeys: number;
+    events: number;
+    funnels: number;
+    users: number;
+  }> {
+    const context = request.tenantContext as HybridTenantContext;
+    return this.workspaceService.getDataImpact(tenantId, workspaceId, context);
+  }
 }

@@ -2,6 +2,8 @@
 
 High-performance event ingestion API for analytics tracking with PII encryption, multi-tenant architecture, and real-time processing capabilities.
 
+> 📚 **Complete Documentation**: For detailed API documentation, architecture guides, and development guidelines, see [/docs/](../docs/) in the project root.
+
 ## 🎯 Overview
 
 Mercurio API is a production-ready analytics ingestion service that handles:

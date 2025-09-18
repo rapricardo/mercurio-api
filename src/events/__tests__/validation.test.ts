@@ -425,6 +425,125 @@ describe('Payload Validation', () => {
     });
   });
 
+  describe('Device and Geo Fields', () => {
+    it('should accept events with client-provided device data', async () => {
+      const eventWithDevice: TrackEventDto = {
+        event_name: 'mobile_app_event',
+        anonymous_id: 'a_123',
+        timestamp: new Date().toISOString(),
+        device: {
+          type: 'mobile',
+          os: 'iOS',
+          version: '15.0',
+          screen_width: 375,
+          screen_height: 812,
+          app_version: '1.2.3'
+        },
+      };
+
+      const result = await controller.trackEvent(eventWithDevice, mockTenantContext, mockRequest);
+      expect(result.accepted).toBe(true);
+      expect(eventProcessor.processTrackEvent).toHaveBeenCalledWith(
+        eventWithDevice,
+        mockTenantContext,
+        expect.any(Object)
+      );
+    });
+
+    it('should accept events with client-provided geo data', async () => {
+      const eventWithGeo: TrackEventDto = {
+        event_name: 'location_event',
+        anonymous_id: 'a_123',
+        timestamp: new Date().toISOString(),
+        geo: {
+          country: 'US',
+          region: 'CA',
+          city: 'San Francisco',
+          latitude: 37.7749,
+          longitude: -122.4194,
+          accuracy: 5,
+          source: 'gps'
+        },
+      };
+
+      const result = await controller.trackEvent(eventWithGeo, mockTenantContext, mockRequest);
+      expect(result.accepted).toBe(true);
+      expect(eventProcessor.processTrackEvent).toHaveBeenCalledWith(
+        eventWithGeo,
+        mockTenantContext,
+        expect.any(Object)
+      );
+    });
+
+    it('should accept events with both device and geo data', async () => {
+      const eventWithBoth: TrackEventDto = {
+        event_name: 'rich_context_event',
+        anonymous_id: 'a_123',
+        timestamp: new Date().toISOString(),
+        device: {
+          type: 'desktop',
+          os: 'macOS',
+          browser: 'Chrome',
+          screen_resolution: '2560x1440'
+        },
+        geo: {
+          country: 'BR',
+          region: 'SP',
+          city: 'São Paulo',
+          timezone: 'America/Sao_Paulo'
+        },
+        properties: {
+          page_category: 'analytics',
+          user_segment: 'power_user'
+        }
+      };
+
+      const result = await controller.trackEvent(eventWithBoth, mockTenantContext, mockRequest);
+      expect(result.accepted).toBe(true);
+    });
+
+    it('should accept events without device or geo data (backward compatibility)', async () => {
+      const basicEvent: TrackEventDto = {
+        event_name: 'basic_event',
+        anonymous_id: 'a_123',
+        timestamp: new Date().toISOString(),
+        properties: {
+          action: 'click',
+          element: 'button'
+        }
+      };
+
+      const result = await controller.trackEvent(basicEvent, mockTenantContext, mockRequest);
+      expect(result.accepted).toBe(true);
+    });
+
+    it('should validate device data is an object', async () => {
+      const invalidDeviceEvent = {
+        event_name: 'invalid_device_event',
+        anonymous_id: 'a_123',
+        timestamp: new Date().toISOString(),
+        device: 'invalid_string', // Should be object
+      };
+
+      await expect(
+        controller.trackEvent(invalidDeviceEvent as any, mockTenantContext, mockRequest)
+      ).rejects.toThrow();
+    });
+
+    it('should validate geo data is an object', async () => {
+      const invalidGeoEvent = {
+        event_name: 'invalid_geo_event',
+        anonymous_id: 'a_123',
+        timestamp: new Date().toISOString(),
+        geo: 'invalid_string', // Should be object
+      };
+
+      await expect(
+        controller.trackEvent(invalidGeoEvent as any, mockTenantContext, mockRequest)
+      ).rejects.toThrow();
+    });
+  });
+
   describe('Error Response Format', () => {
     it('should return structured error for payload too large', async () => {
       const largePayload: TrackEventDto = {

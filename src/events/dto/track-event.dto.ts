@@ -71,6 +71,14 @@ export class TrackEventDto {
   properties?: Record<string, any>
 
   @IsOptional()
+  @IsObject()
+  device?: Record<string, any>
+
+  @IsOptional()
+  @IsObject()
+  geo?: Record<string, any>
+
+  @IsOptional()
   @Transform(({ value }) => value && typeof value === 'object' ? value : undefined)
   page?: PageInfoDto
 

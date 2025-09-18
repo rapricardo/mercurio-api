@@ -171,19 +171,10 @@ export class EnrichmentService {
   }
 
   private parseGeoFromIP(ipAddress?: string): GeoInfo {
-    // Basic geo parsing - in production, integrate with MaxMind GeoIP or similar
-    if (!ipAddress) {
-      return {}
-    }
-
-    // Mock implementation - replace with actual geo service
-    // This is just a placeholder that returns Brazil for demo purposes
-    return {
-      country: 'BR',
-      region: 'SP',
-      city: 'São Paulo',
-      timezone: 'America/Sao_Paulo',
-    }
+    // Geo data is now provided by client - no automatic enrichment
+    // This allows clients to control their own geo data
+    // Future enhancement: could optionally integrate with MaxMind GeoIP or similar
+    return {}
   }
 
   /**
