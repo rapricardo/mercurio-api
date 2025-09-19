@@ -11,7 +11,7 @@ import {
   Req,
   HttpStatus,
   HttpCode,
-} from '@nestjs/common';
+} from '@nestjs/common'
 import {
   ApiTags,
   ApiOperation,
@@ -20,14 +20,14 @@ import {
   ApiQuery,
   ApiBearerAuth,
   ApiSecurity,
-} from '@nestjs/swagger';
-import { FastifyRequest } from 'fastify';
-import { HybridAuthGuard, HybridTenantContext } from '../../common/auth/hybrid-auth.guard';
-import { TenantService } from '../services/tenant.service';
-import { CreateTenantDto } from '../dto/create-tenant.dto';
-import { UpdateTenantDto } from '../dto/update-tenant.dto';
-import { TenantResponseDto, TenantListResponseDto } from '../dto/tenant-response.dto';
-import { TenantQueryDto } from '../dto/tenant-query.dto';
+} from '@nestjs/swagger'
+import { FastifyRequest } from 'fastify'
+import { HybridAuthGuard, HybridTenantContext } from '../../common/auth/hybrid-auth.guard'
+import { TenantService } from '../services/tenant.service'
+import { CreateTenantDto } from '../dto/create-tenant.dto'
+import { UpdateTenantDto } from '../dto/update-tenant.dto'
+import { TenantResponseDto, TenantListResponseDto } from '../dto/tenant-response.dto'
+import { TenantQueryDto } from '../dto/tenant-query.dto'
 
 @ApiTags('Tenants')
 @ApiBearerAuth()
@@ -40,7 +40,8 @@ export class TenantController {
   @Get()
   @ApiOperation({
     summary: 'List all tenants',
-    description: 'Retrieve a paginated list of tenants. Admin users can see all tenants, while regular users can only see tenants they have access to. API keys can only see their own tenant.',
+    description:
+      'Retrieve a paginated list of tenants. Admin users can see all tenants, while regular users can only see tenants they have access to. API keys can only see their own tenant.',
   })
   @ApiResponse({
     status: 200,
@@ -105,16 +106,17 @@ export class TenantController {
   })
   async findAll(
     @Query() query: TenantQueryDto,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<TenantListResponseDto> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.tenantService.findAll(context, query);
+    const context = request.tenantContext as HybridTenantContext
+    return this.tenantService.findAll(context, query)
   }
 
   @Get(':tenantId')
   @ApiOperation({
     summary: 'Get tenant by ID',
-    description: 'Retrieve detailed information about a specific tenant. Users can only access tenants they have permissions for.',
+    description:
+      'Retrieve detailed information about a specific tenant. Users can only access tenants they have permissions for.',
   })
   @ApiParam({
     name: 'tenantId',
@@ -141,17 +143,18 @@ export class TenantController {
   })
   async findOne(
     @Param('tenantId') tenantId: string,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<TenantResponseDto> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.tenantService.findOne(tenantId, context);
+    const context = request.tenantContext as HybridTenantContext
+    return this.tenantService.findOne(tenantId, context)
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a new tenant',
-    description: 'Create a new tenant. Only admin users can create tenants. API keys cannot create tenants.',
+    description:
+      'Create a new tenant. Only admin users can create tenants. API keys cannot create tenants.',
   })
   @ApiResponse({
     status: 201,
@@ -176,16 +179,17 @@ export class TenantController {
   })
   async create(
     @Body() createTenantDto: CreateTenantDto,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<TenantResponseDto> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.tenantService.create(createTenantDto, context);
+    const context = request.tenantContext as HybridTenantContext
+    return this.tenantService.create(createTenantDto, context)
   }
 
   @Patch(':tenantId')
   @ApiOperation({
     summary: 'Update tenant',
-    description: 'Update tenant information. Admin users can update all fields, while regular users have limited access to certain fields.',
+    description:
+      'Update tenant information. Admin users can update all fields, while regular users have limited access to certain fields.',
   })
   @ApiParam({
     name: 'tenantId',
@@ -221,17 +225,18 @@ export class TenantController {
   async update(
     @Param('tenantId') tenantId: string,
     @Body() updateTenantDto: UpdateTenantDto,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<TenantResponseDto> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.tenantService.update(tenantId, updateTenantDto, context);
+    const context = request.tenantContext as HybridTenantContext
+    return this.tenantService.update(tenantId, updateTenantDto, context)
   }
 
   @Delete(':tenantId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Delete tenant',
-    description: 'Delete a tenant and all its associated data. Only admin users can delete tenants. Tenants with active data cannot be deleted.',
+    description:
+      'Delete a tenant and all its associated data. Only admin users can delete tenants. Tenants with active data cannot be deleted.',
   })
   @ApiParam({
     name: 'tenantId',
@@ -270,9 +275,9 @@ export class TenantController {
   })
   async remove(
     @Param('tenantId') tenantId: string,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<{ message: string }> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.tenantService.delete(tenantId, context);
+    const context = request.tenantContext as HybridTenantContext
+    return this.tenantService.delete(tenantId, context)
   }
 }

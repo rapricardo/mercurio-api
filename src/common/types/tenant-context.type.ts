@@ -11,13 +11,13 @@ export interface HybridTenantContext extends TenantContext {
   workspaceId: bigint
   apiKeyId: bigint
   scopes: string[]
-  
+
   // Supabase auth fields (new)
   userId?: string
   userEmail?: string
   userRole?: string
   authType: 'api_key' | 'supabase_jwt'
-  
+
   // Workspace access for JWT auth
   workspaceAccess?: Array<{
     tenantId: bigint

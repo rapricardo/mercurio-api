@@ -17,14 +17,14 @@ export const REQUIRED_SCOPES_KEY = 'requiredScopes'
 /**
  * Decorator to specify required scopes for an endpoint
  */
-export const RequireScopes = Reflector.createDecorator<string[]>();
+export const RequireScopes = Reflector.createDecorator<string[]>()
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
   constructor(
     private readonly apiKeyService: ApiKeyService,
     private readonly reflector: Reflector,
-    private readonly logger: MercurioLogger,
+    private readonly logger: MercurioLogger
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -37,8 +37,8 @@ export class ApiKeyGuard implements CanActivate {
       requestId: requestContext?.requestId,
       endpoint: request.url,
       method: request.method,
-      ip: this.getClientIp(request)
-    };
+      ip: this.getClientIp(request),
+    }
 
     // Extract API key from Authorization header (preferred method)
     const authHeader = request.headers['authorization']
@@ -52,8 +52,8 @@ export class ApiKeyGuard implements CanActivate {
       this.logger.log('Using query parameter authentication for events endpoint', logContext, {
         category: 'auth_method',
         method: 'query_parameter',
-        maskedApiKey: this.maskApiKey(apiKey)
-      });
+        maskedApiKey: this.maskApiKey(apiKey),
+      })
     }
     // Fallback: Check for API key in x-api-key header (alternative method)
     else if (request.headers['x-api-key']) {
@@ -63,13 +63,14 @@ export class ApiKeyGuard implements CanActivate {
     if (!apiKey) {
       this.logger.warn('Missing API key in request', logContext, {
         category: 'auth_failure',
-        reason: 'missing_api_key'
-      });
-      
+        reason: 'missing_api_key',
+      })
+
       throw new UnauthorizedException({
         error: {
           code: 'unauthorized',
-          message: 'Missing API key. Provide via Authorization header (Bearer <key>), x-api-key header, or auth query parameter for events endpoints.',
+          message:
+            'Missing API key. Provide via Authorization header (Bearer <key>), x-api-key header, or auth query parameter for events endpoints.',
         },
       })
     }
@@ -97,29 +98,26 @@ export class ApiKeyGuard implements CanActivate {
     request[TENANT_CONTEXT_KEY] = tenantContext
     // Also populate request context for downstream middlewares/guards
     try {
-      const reqAny: any = request as any;
-      (reqAny[REQUEST_CONTEXT_KEY] ||= {});
-      reqAny[REQUEST_CONTEXT_KEY].tenantId = tenantContext.tenantId?.toString();
-      reqAny[REQUEST_CONTEXT_KEY].workspaceId = tenantContext.workspaceId?.toString();
-      reqAny[REQUEST_CONTEXT_KEY].apiKeyId = tenantContext.apiKeyId?.toString();
-      const raw: any = reqAny.raw || {};
-      (raw[REQUEST_CONTEXT_KEY] ||= {});
-      raw[REQUEST_CONTEXT_KEY].tenantId = tenantContext.tenantId?.toString();
-      raw[REQUEST_CONTEXT_KEY].workspaceId = tenantContext.workspaceId?.toString();
-      raw[REQUEST_CONTEXT_KEY].apiKeyId = tenantContext.apiKeyId?.toString();
+      const reqAny: any = request as any
+      reqAny[REQUEST_CONTEXT_KEY] ||= {}
+      reqAny[REQUEST_CONTEXT_KEY].tenantId = tenantContext.tenantId?.toString()
+      reqAny[REQUEST_CONTEXT_KEY].workspaceId = tenantContext.workspaceId?.toString()
+      reqAny[REQUEST_CONTEXT_KEY].apiKeyId = tenantContext.apiKeyId?.toString()
+      const raw: any = reqAny.raw || {}
+      raw[REQUEST_CONTEXT_KEY] ||= {}
+      raw[REQUEST_CONTEXT_KEY].tenantId = tenantContext.tenantId?.toString()
+      raw[REQUEST_CONTEXT_KEY].workspaceId = tenantContext.workspaceId?.toString()
+      raw[REQUEST_CONTEXT_KEY].apiKeyId = tenantContext.apiKeyId?.toString()
     } catch {
       // best-effort
     }
 
     // Check required scopes
-    const requiredScopes = this.reflector.get<string[]>(
-      RequireScopes,
-      context.getHandler(),
-    )
+    const requiredScopes = this.reflector.get<string[]>(RequireScopes, context.getHandler())
 
     if (requiredScopes && requiredScopes.length > 0) {
       const hasRequiredScope = requiredScopes.some((scope) =>
-        this.apiKeyService.hasScope(validationResult.scopes, scope),
+        this.apiKeyService.hasScope(validationResult.scopes, scope)
       )
 
       if (!hasRequiredScope) {
@@ -156,7 +154,7 @@ export class ApiKeyGuard implements CanActivate {
     if (!apiKey || apiKey.length < 10) {
       return '***'
     }
-    
+
     // For standard API keys like "ak_live_1234567890abcdef"
     const parts = apiKey.split('_')
     if (parts.length >= 3) {
@@ -164,7 +162,7 @@ export class ApiKeyGuard implements CanActivate {
       const suffix = apiKey.slice(-6) // last 6 chars
       return `${prefix}_***_${suffix}`
     }
-    
+
     // Fallback for non-standard format
     const prefix = apiKey.substring(0, Math.min(6, apiKey.length))
     const suffix = apiKey.slice(-4)

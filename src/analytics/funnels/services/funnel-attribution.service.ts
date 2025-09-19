@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { FunnelAnalyticsRepository } from '../repositories/funnel-analytics.repository';
-import { FunnelCacheService } from './funnel-cache.service';
-import { MercurioLogger } from '../../../common/services/logger.service';
-import { MetricsService } from '../../../common/services/metrics.service';
+import { Injectable } from '@nestjs/common'
+import { FunnelAnalyticsRepository } from '../repositories/funnel-analytics.repository'
+import { FunnelCacheService } from './funnel-cache.service'
+import { MercurioLogger } from '../../../common/services/logger.service'
+import { MetricsService } from '../../../common/services/metrics.service'
 import {
   AttributionAnalysisRequest,
   AttributionAnalysisResponse,
@@ -15,7 +15,7 @@ import {
   ConversionCreditDistribution,
   AttributionConfiguration,
   CustomModelWeights,
-} from '../dto/attribution-analysis.dto';
+} from '../dto/attribution-analysis.dto'
 
 /**
  * Advanced Attribution Analysis Service
@@ -38,13 +38,13 @@ export class FunnelAttributionService {
       confidence_threshold: 0.95,
       use_machine_learning: false,
     },
-  };
+  }
 
   constructor(
     private readonly analyticsRepository: FunnelAnalyticsRepository,
     private readonly cache: FunnelCacheService,
     private readonly logger: MercurioLogger,
-    private readonly metrics: MetricsService,
+    private readonly metrics: MetricsService
   ) {}
 
   /**
@@ -54,9 +54,9 @@ export class FunnelAttributionService {
     tenantId: string,
     workspaceId: string,
     funnelId: string,
-    request: AttributionAnalysisRequest,
+    request: AttributionAnalysisRequest
   ): Promise<AttributionAnalysisResponse> {
-    const startTime = Date.now();
+    const startTime = Date.now()
     const cacheKey = this.cache.generateCacheKey('attribution_analysis', {
       tenantId,
       workspaceId,
@@ -65,13 +65,13 @@ export class FunnelAttributionService {
       endDate: request.end_date,
       models: request.attribution_models?.join(',') || 'all',
       crossChannel: request.cross_channel,
-    });
+    })
 
     try {
       // Check cache first
-      const cached = await this.cache.get<AttributionAnalysisResponse>(cacheKey);
+      const cached = await this.cache.get<AttributionAnalysisResponse>(cacheKey)
       if (cached) {
-        return cached;
+        return cached
       }
 
       this.logger.log('Starting attribution analysis', {
@@ -82,15 +82,10 @@ export class FunnelAttributionService {
         endDate: request.end_date,
         models: request.attribution_models,
         crossChannel: request.cross_channel,
-      });
+      })
 
       // Get user journey touchpoint data
-      const touchpointData = await this.getTouchpointData(
-        tenantId,
-        workspaceId,
-        funnelId,
-        request,
-      );
+      const touchpointData = await this.getTouchpointData(tenantId, workspaceId, funnelId, request)
 
       // Run attribution models
       const attributionModels = request.attribution_models || [
@@ -99,36 +94,41 @@ export class FunnelAttributionService {
         'linear',
         'time_decay',
         'position_based',
-      ];
+      ]
 
-      const attributionResults: AttributionModelResult[] = [];
+      const attributionResults: AttributionModelResult[] = []
       for (const model of attributionModels) {
         const modelResult = await this.runAttributionModel(
           model,
           touchpointData,
-          request.custom_model_weights,
-        );
-        attributionResults.push(modelResult);
+          request.custom_model_weights
+        )
+        attributionResults.push(modelResult)
       }
 
       // Analyze dimensions
       const dimensionAttribution = request.dimension_breakdown
-        ? await this.analyzeDimensions(touchpointData, request.dimension_breakdown, attributionModels)
-        : [];
+        ? await this.analyzeDimensions(
+            touchpointData,
+            request.dimension_breakdown,
+            attributionModels
+          )
+        : []
 
       // Cross-model comparison
-      const crossModelComparison = request.include_model_comparison !== false && attributionResults.length > 1
-        ? await this.compareAttributionModels(attributionResults)
-        : [];
+      const crossModelComparison =
+        request.include_model_comparison !== false && attributionResults.length > 1
+          ? await this.compareAttributionModels(attributionResults)
+          : []
 
       // Journey attribution analysis
-      const journeyAttribution = await this.analyzeJourneyAttribution(touchpointData);
+      const journeyAttribution = await this.analyzeJourneyAttribution(touchpointData)
 
       // Conversion credit distribution
       const conversionCreditDistribution = await this.analyzeConversionCreditDistribution(
         touchpointData,
-        attributionResults,
-      );
+        attributionResults
+      )
 
       const response: AttributionAnalysisResponse = {
         funnel_id: funnelId,
@@ -148,28 +148,31 @@ export class FunnelAttributionService {
           touchpoints_analyzed: touchpointData.totalTouchpoints,
           conversions_analyzed: touchpointData.totalConversions,
         },
-      };
+      }
 
       // Cache for 20 minutes
-      await this.cache.set(cacheKey, response, 20 * 60 * 1000);
+      await this.cache.set(cacheKey, response, 20 * 60 * 1000)
 
       // Record metrics
-      this.metrics.recordLatency('attribution_analysis_processing_time', Date.now() - startTime);
-      this.metrics.incrementCounter('attribution_analysis_requests');
+      this.metrics.recordLatency('attribution_analysis_processing_time', Date.now() - startTime)
+      this.metrics.incrementCounter('attribution_analysis_requests')
 
-      return response;
-
+      return response
     } catch (error) {
-      this.logger.error('Error in attribution analysis', error instanceof Error ? error : new Error(String(error)), {
-        tenantId,
-        workspaceId,
-        funnelId,
-        startDate: request.start_date,
-        endDate: request.end_date,
-      });
-      
-      this.metrics.incrementCounter('attribution_analysis_errors');
-      throw error;
+      this.logger.error(
+        'Error in attribution analysis',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          tenantId,
+          workspaceId,
+          funnelId,
+          startDate: request.start_date,
+          endDate: request.end_date,
+        }
+      )
+
+      this.metrics.incrementCounter('attribution_analysis_errors')
+      throw error
     }
   }
 
@@ -180,7 +183,7 @@ export class FunnelAttributionService {
     tenantId: string,
     workspaceId: string,
     funnelId: string,
-    request: AttributionAnalysisRequest,
+    request: AttributionAnalysisRequest
   ): Promise<TouchpointData> {
     try {
       const data = await this.analyticsRepository.getTouchpointJourneys(
@@ -189,18 +192,21 @@ export class FunnelAttributionService {
         BigInt(funnelId),
         request.start_date,
         request.end_date,
-        this.defaultConfig.lookback_window_days,
-      );
+        this.defaultConfig.lookback_window_days
+      )
 
       return {
         journeys: data.journeys || [],
         totalTouchpoints: data.totalTouchpoints || 0,
         totalConversions: data.totalConversions || 0,
         touchpointTypes: data.touchpointTypes || [],
-      };
+      }
     } catch (error) {
-      this.logger.error('Error getting touchpoint data', error instanceof Error ? error : new Error(String(error)));
-      throw error;
+      this.logger.error(
+        'Error getting touchpoint data',
+        error instanceof Error ? error : new Error(String(error))
+      )
+      throw error
     }
   }
 
@@ -210,40 +216,40 @@ export class FunnelAttributionService {
   private async runAttributionModel(
     model: AttributionModel,
     touchpointData: TouchpointData,
-    customWeights?: CustomModelWeights,
+    customWeights?: CustomModelWeights
   ): Promise<AttributionModelResult> {
-    const startTime = Date.now();
+    const startTime = Date.now()
 
-    let attributionResults: TouchpointAttribution[];
+    let attributionResults: TouchpointAttribution[]
 
     switch (model) {
       case 'first_touch':
-        attributionResults = this.calculateFirstTouchAttribution(touchpointData);
-        break;
+        attributionResults = this.calculateFirstTouchAttribution(touchpointData)
+        break
       case 'last_touch':
-        attributionResults = this.calculateLastTouchAttribution(touchpointData);
-        break;
+        attributionResults = this.calculateLastTouchAttribution(touchpointData)
+        break
       case 'linear':
-        attributionResults = this.calculateLinearAttribution(touchpointData);
-        break;
+        attributionResults = this.calculateLinearAttribution(touchpointData)
+        break
       case 'time_decay':
-        attributionResults = this.calculateTimeDecayAttribution(touchpointData);
-        break;
+        attributionResults = this.calculateTimeDecayAttribution(touchpointData)
+        break
       case 'position_based':
-        attributionResults = this.calculatePositionBasedAttribution(touchpointData);
-        break;
+        attributionResults = this.calculatePositionBasedAttribution(touchpointData)
+        break
       case 'custom':
-        attributionResults = this.calculateCustomAttribution(touchpointData, customWeights!);
-        break;
+        attributionResults = this.calculateCustomAttribution(touchpointData, customWeights!)
+        break
       default:
-        throw new Error(`Unsupported attribution model: ${model}`);
+        throw new Error(`Unsupported attribution model: ${model}`)
     }
 
     // Calculate model performance metrics
-    const modelPerformance = this.calculateModelPerformance(attributionResults, touchpointData);
-    
+    const modelPerformance = this.calculateModelPerformance(attributionResults, touchpointData)
+
     // Generate insights
-    const insights = this.generateAttributionInsights(attributionResults, model);
+    const insights = this.generateAttributionInsights(attributionResults, model)
 
     return {
       model_name: model,
@@ -254,197 +260,229 @@ export class FunnelAttributionService {
       model_performance: modelPerformance,
       top_performing_touchpoints: this.getTopPerformingTouchpoints(attributionResults),
       attribution_insights: insights,
-    };
+    }
   }
 
   /**
    * First Touch Attribution Model
    */
   private calculateFirstTouchAttribution(touchpointData: TouchpointData): TouchpointAttribution[] {
-    const touchpointMap = new Map<string, TouchpointAttribution>();
+    const touchpointMap = new Map<string, TouchpointAttribution>()
 
     for (const journey of touchpointData.journeys) {
-      if (journey.touchpoints.length === 0 || !journey.converted) continue;
+      if (journey.touchpoints.length === 0 || !journey.converted) continue
 
-      const firstTouchpoint = journey.touchpoints[0];
-      const touchpointId = this.generateTouchpointId(firstTouchpoint);
+      const firstTouchpoint = journey.touchpoints[0]
+      const touchpointId = this.generateTouchpointId(firstTouchpoint)
 
       if (!touchpointMap.has(touchpointId)) {
-        touchpointMap.set(touchpointId, this.initializeTouchpointAttribution(firstTouchpoint, touchpointId));
+        touchpointMap.set(
+          touchpointId,
+          this.initializeTouchpointAttribution(firstTouchpoint, touchpointId)
+        )
       }
 
-      const attribution = touchpointMap.get(touchpointId)!;
-      attribution.attributed_conversions += 1;
-      attribution.position_analysis.first_touch_percentage += 100; // Gets all credit
+      const attribution = touchpointMap.get(touchpointId)!
+      attribution.attributed_conversions += 1
+      attribution.position_analysis.first_touch_percentage += 100 // Gets all credit
     }
 
-    return this.finalizeTouchpointAttributions(Array.from(touchpointMap.values()), touchpointData.totalConversions);
+    return this.finalizeTouchpointAttributions(
+      Array.from(touchpointMap.values()),
+      touchpointData.totalConversions
+    )
   }
 
   /**
    * Last Touch Attribution Model
    */
   private calculateLastTouchAttribution(touchpointData: TouchpointData): TouchpointAttribution[] {
-    const touchpointMap = new Map<string, TouchpointAttribution>();
+    const touchpointMap = new Map<string, TouchpointAttribution>()
 
     for (const journey of touchpointData.journeys) {
-      if (journey.touchpoints.length === 0 || !journey.converted) continue;
+      if (journey.touchpoints.length === 0 || !journey.converted) continue
 
-      const lastTouchpoint = journey.touchpoints[journey.touchpoints.length - 1];
-      const touchpointId = this.generateTouchpointId(lastTouchpoint);
+      const lastTouchpoint = journey.touchpoints[journey.touchpoints.length - 1]
+      const touchpointId = this.generateTouchpointId(lastTouchpoint)
 
       if (!touchpointMap.has(touchpointId)) {
-        touchpointMap.set(touchpointId, this.initializeTouchpointAttribution(lastTouchpoint, touchpointId));
+        touchpointMap.set(
+          touchpointId,
+          this.initializeTouchpointAttribution(lastTouchpoint, touchpointId)
+        )
       }
 
-      const attribution = touchpointMap.get(touchpointId)!;
-      attribution.attributed_conversions += 1;
-      attribution.position_analysis.last_touch_percentage += 100; // Gets all credit
+      const attribution = touchpointMap.get(touchpointId)!
+      attribution.attributed_conversions += 1
+      attribution.position_analysis.last_touch_percentage += 100 // Gets all credit
     }
 
-    return this.finalizeTouchpointAttributions(Array.from(touchpointMap.values()), touchpointData.totalConversions);
+    return this.finalizeTouchpointAttributions(
+      Array.from(touchpointMap.values()),
+      touchpointData.totalConversions
+    )
   }
 
   /**
    * Linear Attribution Model
    */
   private calculateLinearAttribution(touchpointData: TouchpointData): TouchpointAttribution[] {
-    const touchpointMap = new Map<string, TouchpointAttribution>();
+    const touchpointMap = new Map<string, TouchpointAttribution>()
 
     for (const journey of touchpointData.journeys) {
-      if (journey.touchpoints.length === 0 || !journey.converted) continue;
+      if (journey.touchpoints.length === 0 || !journey.converted) continue
 
-      const creditPerTouchpoint = 1 / journey.touchpoints.length;
+      const creditPerTouchpoint = 1 / journey.touchpoints.length
 
       for (let i = 0; i < journey.touchpoints.length; i++) {
-        const touchpoint = journey.touchpoints[i];
-        const touchpointId = this.generateTouchpointId(touchpoint);
+        const touchpoint = journey.touchpoints[i]
+        const touchpointId = this.generateTouchpointId(touchpoint)
 
         if (!touchpointMap.has(touchpointId)) {
-          touchpointMap.set(touchpointId, this.initializeTouchpointAttribution(touchpoint, touchpointId));
+          touchpointMap.set(
+            touchpointId,
+            this.initializeTouchpointAttribution(touchpoint, touchpointId)
+          )
         }
 
-        const attribution = touchpointMap.get(touchpointId)!;
-        attribution.attributed_conversions += creditPerTouchpoint;
+        const attribution = touchpointMap.get(touchpointId)!
+        attribution.attributed_conversions += creditPerTouchpoint
 
         // Update position analysis
         if (i === 0) {
-          attribution.position_analysis.first_touch_percentage += (creditPerTouchpoint * 100);
+          attribution.position_analysis.first_touch_percentage += creditPerTouchpoint * 100
         } else if (i === journey.touchpoints.length - 1) {
-          attribution.position_analysis.last_touch_percentage += (creditPerTouchpoint * 100);
+          attribution.position_analysis.last_touch_percentage += creditPerTouchpoint * 100
         } else {
-          attribution.position_analysis.middle_touch_percentage += (creditPerTouchpoint * 100);
+          attribution.position_analysis.middle_touch_percentage += creditPerTouchpoint * 100
         }
       }
     }
 
-    return this.finalizeTouchpointAttributions(Array.from(touchpointMap.values()), touchpointData.totalConversions);
+    return this.finalizeTouchpointAttributions(
+      Array.from(touchpointMap.values()),
+      touchpointData.totalConversions
+    )
   }
 
   /**
    * Time Decay Attribution Model
    */
   private calculateTimeDecayAttribution(touchpointData: TouchpointData): TouchpointAttribution[] {
-    const touchpointMap = new Map<string, TouchpointAttribution>();
-    const halfLifeDays = this.defaultConfig.time_decay_half_life_days || 7;
+    const touchpointMap = new Map<string, TouchpointAttribution>()
+    const halfLifeDays = this.defaultConfig.time_decay_half_life_days || 7
 
     for (const journey of touchpointData.journeys) {
-      if (journey.touchpoints.length === 0 || !journey.converted) continue;
+      if (journey.touchpoints.length === 0 || !journey.converted) continue
 
       // Calculate weights based on time decay
-      const weights: number[] = [];
-      const conversionTime = new Date(journey.conversion_timestamp).getTime();
+      const weights: number[] = []
+      const conversionTime = new Date(journey.conversion_timestamp).getTime()
 
       for (const touchpoint of journey.touchpoints) {
-        const touchpointTime = new Date(touchpoint.timestamp).getTime();
-        const daysDiff = (conversionTime - touchpointTime) / (1000 * 60 * 60 * 24);
-        const weight = Math.pow(0.5, daysDiff / halfLifeDays);
-        weights.push(weight);
+        const touchpointTime = new Date(touchpoint.timestamp).getTime()
+        const daysDiff = (conversionTime - touchpointTime) / (1000 * 60 * 60 * 24)
+        const weight = Math.pow(0.5, daysDiff / halfLifeDays)
+        weights.push(weight)
       }
 
       // Normalize weights to sum to 1
-      const totalWeight = weights.reduce((sum, w) => sum + w, 0);
-      const normalizedWeights = weights.map(w => w / totalWeight);
+      const totalWeight = weights.reduce((sum, w) => sum + w, 0)
+      const normalizedWeights = weights.map((w) => w / totalWeight)
 
       // Distribute attribution
       for (let i = 0; i < journey.touchpoints.length; i++) {
-        const touchpoint = journey.touchpoints[i];
-        const touchpointId = this.generateTouchpointId(touchpoint);
-        const credit = normalizedWeights[i];
+        const touchpoint = journey.touchpoints[i]
+        const touchpointId = this.generateTouchpointId(touchpoint)
+        const credit = normalizedWeights[i]
 
         if (!touchpointMap.has(touchpointId)) {
-          touchpointMap.set(touchpointId, this.initializeTouchpointAttribution(touchpoint, touchpointId));
+          touchpointMap.set(
+            touchpointId,
+            this.initializeTouchpointAttribution(touchpoint, touchpointId)
+          )
         }
 
-        const attribution = touchpointMap.get(touchpointId)!;
-        attribution.attributed_conversions += credit;
+        const attribution = touchpointMap.get(touchpointId)!
+        attribution.attributed_conversions += credit
 
         // Update position analysis
         if (i === 0) {
-          attribution.position_analysis.first_touch_percentage += (credit * 100);
+          attribution.position_analysis.first_touch_percentage += credit * 100
         } else if (i === journey.touchpoints.length - 1) {
-          attribution.position_analysis.last_touch_percentage += (credit * 100);
+          attribution.position_analysis.last_touch_percentage += credit * 100
         } else {
-          attribution.position_analysis.middle_touch_percentage += (credit * 100);
+          attribution.position_analysis.middle_touch_percentage += credit * 100
         }
       }
     }
 
-    return this.finalizeTouchpointAttributions(Array.from(touchpointMap.values()), touchpointData.totalConversions);
+    return this.finalizeTouchpointAttributions(
+      Array.from(touchpointMap.values()),
+      touchpointData.totalConversions
+    )
   }
 
   /**
    * Position-Based Attribution Model (U-shaped)
    */
-  private calculatePositionBasedAttribution(touchpointData: TouchpointData): TouchpointAttribution[] {
-    const touchpointMap = new Map<string, TouchpointAttribution>();
-    const firstTouchWeight = this.defaultConfig.position_based_weights?.first_touch || 0.4;
-    const lastTouchWeight = this.defaultConfig.position_based_weights?.last_touch || 0.4;
-    const middleWeight = 1 - firstTouchWeight - lastTouchWeight;
+  private calculatePositionBasedAttribution(
+    touchpointData: TouchpointData
+  ): TouchpointAttribution[] {
+    const touchpointMap = new Map<string, TouchpointAttribution>()
+    const firstTouchWeight = this.defaultConfig.position_based_weights?.first_touch || 0.4
+    const lastTouchWeight = this.defaultConfig.position_based_weights?.last_touch || 0.4
+    const middleWeight = 1 - firstTouchWeight - lastTouchWeight
 
     for (const journey of touchpointData.journeys) {
-      if (journey.touchpoints.length === 0 || !journey.converted) continue;
+      if (journey.touchpoints.length === 0 || !journey.converted) continue
 
       for (let i = 0; i < journey.touchpoints.length; i++) {
-        const touchpoint = journey.touchpoints[i];
-        const touchpointId = this.generateTouchpointId(touchpoint);
+        const touchpoint = journey.touchpoints[i]
+        const touchpointId = this.generateTouchpointId(touchpoint)
 
         if (!touchpointMap.has(touchpointId)) {
-          touchpointMap.set(touchpointId, this.initializeTouchpointAttribution(touchpoint, touchpointId));
+          touchpointMap.set(
+            touchpointId,
+            this.initializeTouchpointAttribution(touchpoint, touchpointId)
+          )
         }
 
-        const attribution = touchpointMap.get(touchpointId)!;
-        let credit = 0;
+        const attribution = touchpointMap.get(touchpointId)!
+        let credit = 0
 
         if (journey.touchpoints.length === 1) {
           // Single touchpoint gets all credit
-          credit = 1;
+          credit = 1
         } else if (i === 0) {
           // First touchpoint
-          credit = firstTouchWeight;
+          credit = firstTouchWeight
         } else if (i === journey.touchpoints.length - 1) {
           // Last touchpoint
-          credit = lastTouchWeight;
+          credit = lastTouchWeight
         } else {
           // Middle touchpoints share remaining weight
-          const middleTouchpoints = journey.touchpoints.length - 2;
-          credit = middleWeight / middleTouchpoints;
+          const middleTouchpoints = journey.touchpoints.length - 2
+          credit = middleWeight / middleTouchpoints
         }
 
-        attribution.attributed_conversions += credit;
+        attribution.attributed_conversions += credit
 
         // Update position analysis
         if (i === 0) {
-          attribution.position_analysis.first_touch_percentage += (credit * 100);
+          attribution.position_analysis.first_touch_percentage += credit * 100
         } else if (i === journey.touchpoints.length - 1) {
-          attribution.position_analysis.last_touch_percentage += (credit * 100);
+          attribution.position_analysis.last_touch_percentage += credit * 100
         } else {
-          attribution.position_analysis.middle_touch_percentage += (credit * 100);
+          attribution.position_analysis.middle_touch_percentage += credit * 100
         }
       }
     }
 
-    return this.finalizeTouchpointAttributions(Array.from(touchpointMap.values()), touchpointData.totalConversions);
+    return this.finalizeTouchpointAttributions(
+      Array.from(touchpointMap.values()),
+      touchpointData.totalConversions
+    )
   }
 
   /**
@@ -452,55 +490,64 @@ export class FunnelAttributionService {
    */
   private calculateCustomAttribution(
     touchpointData: TouchpointData,
-    weights: CustomModelWeights,
+    weights: CustomModelWeights
   ): TouchpointAttribution[] {
     // Implement custom model combining different approaches
-    const touchpointMap = new Map<string, TouchpointAttribution>();
+    const touchpointMap = new Map<string, TouchpointAttribution>()
 
     for (const journey of touchpointData.journeys) {
-      if (journey.touchpoints.length === 0 || !journey.converted) continue;
+      if (journey.touchpoints.length === 0 || !journey.converted) continue
 
       // Combine first touch, last touch, and middle touches based on custom weights
-      const firstTouchCredit = weights.first_touch_weight;
-      const lastTouchCredit = weights.last_touch_weight;
-      const middleCredit = weights.middle_touches_weight;
-      const totalWeight = firstTouchCredit + lastTouchCredit + middleCredit;
+      const firstTouchCredit = weights.first_touch_weight
+      const lastTouchCredit = weights.last_touch_weight
+      const middleCredit = weights.middle_touches_weight
+      const totalWeight = firstTouchCredit + lastTouchCredit + middleCredit
 
       for (let i = 0; i < journey.touchpoints.length; i++) {
-        const touchpoint = journey.touchpoints[i];
-        const touchpointId = this.generateTouchpointId(touchpoint);
+        const touchpoint = journey.touchpoints[i]
+        const touchpointId = this.generateTouchpointId(touchpoint)
 
         if (!touchpointMap.has(touchpointId)) {
-          touchpointMap.set(touchpointId, this.initializeTouchpointAttribution(touchpoint, touchpointId));
+          touchpointMap.set(
+            touchpointId,
+            this.initializeTouchpointAttribution(touchpoint, touchpointId)
+          )
         }
 
-        const attribution = touchpointMap.get(touchpointId)!;
-        let credit = 0;
+        const attribution = touchpointMap.get(touchpointId)!
+        let credit = 0
 
         if (journey.touchpoints.length === 1) {
-          credit = 1;
+          credit = 1
         } else if (i === 0) {
-          credit = firstTouchCredit / totalWeight;
+          credit = firstTouchCredit / totalWeight
         } else if (i === journey.touchpoints.length - 1) {
-          credit = lastTouchCredit / totalWeight;
+          credit = lastTouchCredit / totalWeight
         } else {
-          const middleTouchpoints = journey.touchpoints.length - 2;
-          credit = (middleCredit / totalWeight) / middleTouchpoints;
+          const middleTouchpoints = journey.touchpoints.length - 2
+          credit = middleCredit / totalWeight / middleTouchpoints
         }
 
-        attribution.attributed_conversions += credit;
+        attribution.attributed_conversions += credit
       }
     }
 
-    return this.finalizeTouchpointAttributions(Array.from(touchpointMap.values()), touchpointData.totalConversions);
+    return this.finalizeTouchpointAttributions(
+      Array.from(touchpointMap.values()),
+      touchpointData.totalConversions
+    )
   }
 
   // Helper methods
   private generateTouchpointId(touchpoint: JourneyTouchpoint): string {
-    return `${touchpoint.touchpoint_type}_${touchpoint.utm_source || 'direct'}_${touchpoint.utm_medium || 'none'}`;
+    return `${touchpoint.touchpoint_type}_${touchpoint.utm_source || 'direct'}_${touchpoint.utm_medium || 'none'}`
   }
 
-  private initializeTouchpointAttribution(touchpoint: JourneyTouchpoint, touchpointId: string): TouchpointAttribution {
+  private initializeTouchpointAttribution(
+    touchpoint: JourneyTouchpoint,
+    touchpointId: string
+  ): TouchpointAttribution {
     return {
       touchpoint_id: touchpointId,
       touchpoint_type: touchpoint.touchpoint_type as any,
@@ -525,33 +572,39 @@ export class FunnelAttributionService {
         journey_completion_rate: 0,
         bounce_rate: 0,
       },
-    };
+    }
   }
 
   private finalizeTouchpointAttributions(
     attributions: TouchpointAttribution[],
-    totalConversions: number,
+    totalConversions: number
   ): TouchpointAttribution[] {
     return attributions
-      .map(attr => ({
+      .map((attr) => ({
         ...attr,
         attribution_percentage: (attr.attributed_conversions / totalConversions) * 100,
       }))
-      .sort((a, b) => b.attributed_conversions - a.attributed_conversions);
+      .sort((a, b) => b.attributed_conversions - a.attributed_conversions)
   }
 
   // Placeholder methods for remaining functionality
-  private calculateModelPerformance(attributions: TouchpointAttribution[], touchpointData: TouchpointData) {
+  private calculateModelPerformance(
+    attributions: TouchpointAttribution[],
+    touchpointData: TouchpointData
+  ) {
     return {
       attribution_accuracy_score: 85,
       coverage_percentage: 95,
       confidence_interval: [80, 90] as [number, number],
       statistical_significance: 0.05,
-    };
+    }
   }
 
-  private generateAttributionInsights(attributions: TouchpointAttribution[], model: AttributionModel) {
-    return [];
+  private generateAttributionInsights(
+    attributions: TouchpointAttribution[],
+    model: AttributionModel
+  ) {
+    return []
   }
 
   private getTopPerformingTouchpoints(attributions: TouchpointAttribution[]) {
@@ -573,22 +626,26 @@ export class FunnelAttributionService {
         improve_landing_page: false,
         a_b_test_creative: true,
       },
-    }));
+    }))
   }
 
   private async analyzeDimensions(
     touchpointData: TouchpointData,
     dimensions: string[],
-    models: AttributionModel[],
+    models: AttributionModel[]
   ): Promise<DimensionAttribution[]> {
-    return []; // Simplified implementation
+    return [] // Simplified implementation
   }
 
-  private async compareAttributionModels(models: AttributionModelResult[]): Promise<CrossModelComparison[]> {
-    return []; // Simplified implementation
+  private async compareAttributionModels(
+    models: AttributionModelResult[]
+  ): Promise<CrossModelComparison[]> {
+    return [] // Simplified implementation
   }
 
-  private async analyzeJourneyAttribution(touchpointData: TouchpointData): Promise<JourneyAttribution> {
+  private async analyzeJourneyAttribution(
+    touchpointData: TouchpointData
+  ): Promise<JourneyAttribution> {
     return {
       typical_journey_patterns: [],
       journey_complexity_analysis: {
@@ -603,12 +660,12 @@ export class FunnelAttributionService {
         most_efficient_journeys: [],
         least_efficient_journeys: [],
       },
-    };
+    }
   }
 
   private async analyzeConversionCreditDistribution(
     touchpointData: TouchpointData,
-    models: AttributionModelResult[],
+    models: AttributionModelResult[]
   ): Promise<ConversionCreditDistribution> {
     return {
       total_conversion_credit: 100,
@@ -629,34 +686,34 @@ export class FunnelAttributionService {
         attribution_gini_coefficient: 0.3,
         diversification_score: 75,
       },
-    };
+    }
   }
 }
 
 // Supporting interfaces
 interface TouchpointData {
-  journeys: UserJourney[];
-  totalTouchpoints: number;
-  totalConversions: number;
-  touchpointTypes: string[];
+  journeys: UserJourney[]
+  totalTouchpoints: number
+  totalConversions: number
+  touchpointTypes: string[]
 }
 
 interface UserJourney {
-  user_id: string;
-  anonymous_id: string;
-  touchpoints: JourneyTouchpoint[];
-  converted: boolean;
-  conversion_timestamp: string;
-  journey_duration_seconds: number;
+  user_id: string
+  anonymous_id: string
+  touchpoints: JourneyTouchpoint[]
+  converted: boolean
+  conversion_timestamp: string
+  journey_duration_seconds: number
 }
 
 interface JourneyTouchpoint {
-  touchpoint_type: string;
-  timestamp: string;
-  utm_source?: string;
-  utm_medium?: string;
-  utm_campaign?: string;
-  referrer_domain?: string;
-  device_type?: string;
-  page_url?: string;
+  touchpoint_type: string
+  timestamp: string
+  utm_source?: string
+  utm_medium?: string
+  utm_campaign?: string
+  referrer_domain?: string
+  device_type?: string
+  page_url?: string
 }

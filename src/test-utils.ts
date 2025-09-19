@@ -1,14 +1,14 @@
-import { PrismaClient } from '@prisma/client';
-import crypto from 'node:crypto';
+import { PrismaClient } from '@prisma/client'
+import crypto from 'node:crypto'
 
 /**
  * Test utilities for database operations and multi-tenant testing
  */
 export class TestUtils {
-  private prisma: PrismaClient;
+  private prisma: PrismaClient
 
   constructor(prisma: PrismaClient) {
-    this.prisma = prisma;
+    this.prisma = prisma
   }
 
   /**
@@ -30,10 +30,10 @@ export class TestUtils {
       'api_key',
       'workspace',
       'tenant',
-    ];
+    ]
 
     for (const tableName of tableNames) {
-      await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "${tableName}" CASCADE`);
+      await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "${tableName}" CASCADE`)
     }
   }
 
@@ -45,16 +45,16 @@ export class TestUtils {
       data: {
         name: name || `Test Tenant ${Date.now()}`,
       },
-    });
+    })
 
     const workspace = await this.prisma.workspace.create({
       data: {
         name: 'Test Workspace',
         tenantId: tenant.id,
       },
-    });
+    })
 
-    const keyHash = crypto.createHash('sha256').update('test-key').digest('hex');
+    const keyHash = crypto.createHash('sha256').update('test-key').digest('hex')
     const apiKey = await this.prisma.apiKey.create({
       data: {
         name: 'Test API Key',
@@ -62,9 +62,9 @@ export class TestUtils {
         scopes: ['read', 'write'],
         workspaceId: workspace.id,
       },
-    });
+    })
 
-    return { tenant, workspace, apiKey };
+    return { tenant, workspace, apiKey }
   }
 
   /**
@@ -95,17 +95,20 @@ export class TestUtils {
           city: 'São Paulo',
         },
       },
-    });
+    })
 
-    return visitor;
+    return visitor
   }
 
   /**
    * Create a test lead
    */
   async createTestLead(tenantId: bigint, workspaceId: bigint, email?: string) {
-    const testEmail = email || `test${Date.now()}@example.com`;
-    const emailFingerprint = crypto.createHmac('sha256', 'test-secret').update(testEmail).digest('hex');
+    const testEmail = email || `test${Date.now()}@example.com`
+    const emailFingerprint = crypto
+      .createHmac('sha256', 'test-secret')
+      .update(testEmail)
+      .digest('hex')
 
     const lead = await this.prisma.lead.create({
       data: {
@@ -114,9 +117,9 @@ export class TestUtils {
         emailEnc: Buffer.from(testEmail).toString('base64'),
         emailFingerprint,
       },
-    });
+    })
 
-    return lead;
+    return lead
   }
 
   /**
@@ -131,9 +134,9 @@ export class TestUtils {
         anonymousId,
         userAgent: 'Test User Agent',
       },
-    });
+    })
 
-    return session;
+    return session
   }
 
   /**
@@ -145,7 +148,7 @@ export class TestUtils {
     anonymousId: string,
     eventName: string = 'test_event',
     sessionId?: string,
-    leadId?: bigint,
+    leadId?: bigint
   ) {
     const event = await this.prisma.event.create({
       data: {
@@ -180,9 +183,9 @@ export class TestUtils {
           test: true,
         },
       },
-    });
+    })
 
-    return event;
+    return event
   }
 
   /**
@@ -196,7 +199,7 @@ export class TestUtils {
         tenantId,
         workspaceId,
       },
-    });
+    })
 
     const funnelVersion = await this.prisma.funnelVersion.create({
       data: {
@@ -204,7 +207,7 @@ export class TestUtils {
         version: 1,
         state: 'draft',
       },
-    });
+    })
 
     const step = await this.prisma.funnelStep.create({
       data: {
@@ -216,7 +219,7 @@ export class TestUtils {
           description: 'Test step description',
         },
       },
-    });
+    })
 
     const stepMatch = await this.prisma.funnelStepMatch.create({
       data: {
@@ -229,9 +232,9 @@ export class TestUtils {
           },
         },
       },
-    });
+    })
 
-    return { funnel, funnelVersion, step, stepMatch };
+    return { funnel, funnelVersion, step, stepMatch }
   }
 
   /**
@@ -242,19 +245,19 @@ export class TestUtils {
       // Count records for each tenant
       const tenant1Visitors = await this.prisma.visitor.count({
         where: { tenantId: tenantId1 },
-      });
+      })
 
       const tenant2Visitors = await this.prisma.visitor.count({
         where: { tenantId: tenantId2 },
-      });
+      })
 
       const tenant1Events = await this.prisma.event.count({
         where: { tenantId: tenantId1 },
-      });
+      })
 
       const tenant2Events = await this.prisma.event.count({
         where: { tenantId: tenantId2 },
-      });
+      })
 
       // Verify cross-tenant queries return no data
       const crossTenantVisitors = await this.prisma.visitor.findMany({
@@ -266,12 +269,12 @@ export class TestUtils {
             },
           },
         },
-      });
+      })
 
-      return crossTenantVisitors.length === 0;
+      return crossTenantVisitors.length === 0
     } catch (error) {
-      console.error('Error verifying tenant isolation:', error);
-      return false;
+      console.error('Error verifying tenant isolation:', error)
+      return false
     }
   }
 }

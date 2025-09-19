@@ -1,5 +1,5 @@
-import { IsNotEmpty, IsString, IsArray, IsOptional, MaxLength, ArrayMinSize } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsString, IsArray, IsOptional, MaxLength, ArrayMinSize } from 'class-validator'
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 
 export class CreateApiKeyDto {
   @ApiProperty({
@@ -10,7 +10,7 @@ export class CreateApiKeyDto {
   @IsNotEmpty()
   @IsString()
   @MaxLength(255, { message: 'API key name cannot exceed 255 characters' })
-  name!: string;
+  name!: string
 
   @ApiPropertyOptional({
     description: 'API key scopes/permissions',
@@ -21,5 +21,5 @@ export class CreateApiKeyDto {
   @IsArray()
   @ArrayMinSize(1, { message: 'At least one scope is required' })
   @IsString({ each: true })
-  scopes?: string[];
+  scopes?: string[]
 }

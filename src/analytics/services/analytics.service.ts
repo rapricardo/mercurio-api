@@ -1,8 +1,8 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
-import { MetricsService } from './metrics.service';
-import { TimeSeriesService } from './time-series.service';
-import { AnalyticsCacheService } from './analytics-cache.service';
-import { AnalyticsRepository } from '../repositories/analytics.repository';
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common'
+import { MetricsService } from './metrics.service'
+import { TimeSeriesService } from './time-series.service'
+import { AnalyticsCacheService } from './analytics-cache.service'
+import { AnalyticsRepository } from '../repositories/analytics.repository'
 import {
   PeriodQueryDto,
   TimeSeriesQueryDto,
@@ -10,7 +10,7 @@ import {
   UserAnalyticsQueryDto,
   EventDetailsQueryDto,
   ExportRequestDto,
-} from '../dto/query.dto';
+} from '../dto/query.dto'
 import {
   OverviewMetricsResponse,
   TimeSeriesResponse,
@@ -18,19 +18,19 @@ import {
   UserAnalyticsResponse,
   EventDetailsResponse,
   ExportResponse,
-} from '../dto/response.dto';
-import { PeriodUtils } from '../utils/period.utils';
-import { TimezoneUtils } from '../utils/timezone.utils';
+} from '../dto/response.dto'
+import { PeriodUtils } from '../utils/period.utils'
+import { TimezoneUtils } from '../utils/timezone.utils'
 
 @Injectable()
 export class AnalyticsService {
-  private readonly logger = new Logger(AnalyticsService.name);
+  private readonly logger = new Logger(AnalyticsService.name)
 
   constructor(
     private readonly metricsService: MetricsService,
     private readonly timeSeriesService: TimeSeriesService,
     private readonly cacheService: AnalyticsCacheService,
-    private readonly analyticsRepository: AnalyticsRepository,
+    private readonly analyticsRepository: AnalyticsRepository
   ) {}
 
   /**
@@ -39,11 +39,11 @@ export class AnalyticsService {
   async getOverviewMetrics(
     tenantId: bigint,
     workspaceId: bigint,
-    query: PeriodQueryDto,
+    query: PeriodQueryDto
   ): Promise<OverviewMetricsResponse> {
     // Validate inputs
-    this.validateTenantWorkspace(tenantId, workspaceId);
-    this.validateTimezone(query.timezone);
+    this.validateTenantWorkspace(tenantId, workspaceId)
+    this.validateTimezone(query.timezone)
 
     // Build cache key
     const cacheKey = this.cacheService.buildCacheKey(
@@ -55,48 +55,44 @@ export class AnalyticsService {
         startDate: query.startDate?.toISOString(),
         endDate: query.endDate?.toISOString(),
         timezone: query.timezone,
-      },
-    );
+      }
+    )
 
     // Try cache first
     const { start: startDate, end: endDate } = PeriodUtils.calculatePeriod(
       query.period,
       query.startDate,
       query.endDate,
-      query.timezone,
-    );
+      query.timezone
+    )
 
     if (this.cacheService.shouldCache(query.period, startDate, endDate)) {
-      const cached = await this.cacheService.get<OverviewMetricsResponse>(cacheKey);
+      const cached = await this.cacheService.get<OverviewMetricsResponse>(cacheKey)
       if (cached) {
-        this.logger.debug('Returning cached overview metrics', { tenantId, workspaceId });
-        return cached;
+        this.logger.debug('Returning cached overview metrics', { tenantId, workspaceId })
+        return cached
       }
     }
 
     // Calculate metrics
-    const startTime = Date.now();
-    const result = await this.metricsService.calculateOverviewMetrics(
-      tenantId,
-      workspaceId,
-      query,
-    );
+    const startTime = Date.now()
+    const result = await this.metricsService.calculateOverviewMetrics(tenantId, workspaceId, query)
 
-    const duration = Date.now() - startTime;
+    const duration = Date.now() - startTime
     this.logger.log('Overview metrics calculated', {
       tenantId,
       workspaceId,
       duration,
       period: query.period,
-    });
+    })
 
     // Cache the result
     if (this.cacheService.shouldCache(query.period, startDate, endDate)) {
-      const ttl = this.cacheService.getCacheTTL(query.period, 'overview');
-      await this.cacheService.set(cacheKey, result, ttl);
+      const ttl = this.cacheService.getCacheTTL(query.period, 'overview')
+      await this.cacheService.set(cacheKey, result, ttl)
     }
 
-    return result;
+    return result
   }
 
   /**
@@ -105,12 +101,12 @@ export class AnalyticsService {
   async getTimeSeries(
     tenantId: bigint,
     workspaceId: bigint,
-    query: TimeSeriesQueryDto,
+    query: TimeSeriesQueryDto
   ): Promise<TimeSeriesResponse> {
     // Validate inputs
-    this.validateTenantWorkspace(tenantId, workspaceId);
-    this.validateTimezone(query.timezone);
-    this.timeSeriesService.validateMetrics(query.metrics);
+    this.validateTenantWorkspace(tenantId, workspaceId)
+    this.validateTimezone(query.timezone)
+    this.timeSeriesService.validateMetrics(query.metrics)
 
     // Build cache key
     const cacheKey = this.cacheService.buildCacheKey(
@@ -124,51 +120,47 @@ export class AnalyticsService {
         granularity: query.granularity,
         metrics: query.metrics.sort(), // Sort for consistent caching
         timezone: query.timezone,
-      },
-    );
+      }
+    )
 
     // Try cache first
     const { start: startDate, end: endDate } = PeriodUtils.calculatePeriod(
       query.period,
       query.startDate,
       query.endDate,
-      query.timezone,
-    );
+      query.timezone
+    )
 
     if (this.cacheService.shouldCache(query.period, startDate, endDate)) {
-      const cached = await this.cacheService.get<TimeSeriesResponse>(cacheKey);
+      const cached = await this.cacheService.get<TimeSeriesResponse>(cacheKey)
       if (cached) {
-        this.logger.debug('Returning cached time series', { tenantId, workspaceId });
-        return cached;
+        this.logger.debug('Returning cached time series', { tenantId, workspaceId })
+        return cached
       }
     }
 
     // Generate time series
-    const startTime = Date.now();
-    const result = await this.timeSeriesService.generateTimeSeries(
-      tenantId,
-      workspaceId,
-      query,
-    );
+    const startTime = Date.now()
+    const result = await this.timeSeriesService.generateTimeSeries(tenantId, workspaceId, query)
 
-    const duration = Date.now() - startTime;
-    const dataPointCount = result.data.length;
-    
+    const duration = Date.now() - startTime
+    const dataPointCount = result.data.length
+
     this.logger.log('Time series generated', {
       tenantId,
       workspaceId,
       duration,
       dataPoints: dataPointCount,
       granularity: query.granularity,
-    });
+    })
 
     // Cache the result
     if (this.cacheService.shouldCache(query.period, startDate, endDate)) {
-      const ttl = this.cacheService.getCacheTTL(query.period, 'timeseries');
-      await this.cacheService.set(cacheKey, result, ttl);
+      const ttl = this.cacheService.getCacheTTL(query.period, 'timeseries')
+      await this.cacheService.set(cacheKey, result, ttl)
     }
 
-    return result;
+    return result
   }
 
   /**
@@ -177,12 +169,12 @@ export class AnalyticsService {
   async getTopEvents(
     tenantId: bigint,
     workspaceId: bigint,
-    query: TopEventsQueryDto,
+    query: TopEventsQueryDto
   ): Promise<TopEventsResponse> {
     // Validate inputs
-    this.validateTenantWorkspace(tenantId, workspaceId);
-    this.validateTimezone(query.timezone);
-    this.validateLimit(query.limit, 50);
+    this.validateTenantWorkspace(tenantId, workspaceId)
+    this.validateTimezone(query.timezone)
+    this.validateLimit(query.limit, 50)
 
     // Build cache key
     const cacheKey = this.cacheService.buildCacheKey(
@@ -195,48 +187,44 @@ export class AnalyticsService {
         endDate: query.endDate?.toISOString(),
         limit: query.limit,
         timezone: query.timezone,
-      },
-    );
+      }
+    )
 
     // Try cache first
     const { start: startDate, end: endDate } = PeriodUtils.calculatePeriod(
       query.period,
       query.startDate,
       query.endDate,
-      query.timezone,
-    );
+      query.timezone
+    )
 
     if (this.cacheService.shouldCache(query.period, startDate, endDate)) {
-      const cached = await this.cacheService.get<TopEventsResponse>(cacheKey);
+      const cached = await this.cacheService.get<TopEventsResponse>(cacheKey)
       if (cached) {
-        this.logger.debug('Returning cached top events', { tenantId, workspaceId });
-        return cached;
+        this.logger.debug('Returning cached top events', { tenantId, workspaceId })
+        return cached
       }
     }
 
     // Calculate top events
-    const startTime = Date.now();
-    const result = await this.metricsService.calculateTopEvents(
-      tenantId,
-      workspaceId,
-      query,
-    );
+    const startTime = Date.now()
+    const result = await this.metricsService.calculateTopEvents(tenantId, workspaceId, query)
 
-    const duration = Date.now() - startTime;
+    const duration = Date.now() - startTime
     this.logger.log('Top events calculated', {
       tenantId,
       workspaceId,
       duration,
       eventCount: result.events.length,
-    });
+    })
 
     // Cache the result
     if (this.cacheService.shouldCache(query.period, startDate, endDate)) {
-      const ttl = this.cacheService.getCacheTTL(query.period, 'events-top');
-      await this.cacheService.set(cacheKey, result, ttl);
+      const ttl = this.cacheService.getCacheTTL(query.period, 'events-top')
+      await this.cacheService.set(cacheKey, result, ttl)
     }
 
-    return result;
+    return result
   }
 
   /**
@@ -245,11 +233,11 @@ export class AnalyticsService {
   async getUserAnalytics(
     tenantId: bigint,
     workspaceId: bigint,
-    query: UserAnalyticsQueryDto,
+    query: UserAnalyticsQueryDto
   ): Promise<UserAnalyticsResponse> {
     // Validate inputs
-    this.validateTenantWorkspace(tenantId, workspaceId);
-    this.validateTimezone(query.timezone);
+    this.validateTenantWorkspace(tenantId, workspaceId)
+    this.validateTimezone(query.timezone)
 
     // Build cache key
     const cacheKey = this.cacheService.buildCacheKey(
@@ -262,48 +250,44 @@ export class AnalyticsService {
         endDate: query.endDate?.toISOString(),
         segment: query.segment,
         timezone: query.timezone,
-      },
-    );
+      }
+    )
 
     // Try cache first
     const { start: startDate, end: endDate } = PeriodUtils.calculatePeriod(
       query.period,
       query.startDate,
       query.endDate,
-      query.timezone,
-    );
+      query.timezone
+    )
 
     if (this.cacheService.shouldCache(query.period, startDate, endDate)) {
-      const cached = await this.cacheService.get<UserAnalyticsResponse>(cacheKey);
+      const cached = await this.cacheService.get<UserAnalyticsResponse>(cacheKey)
       if (cached) {
-        this.logger.debug('Returning cached user analytics', { tenantId, workspaceId });
-        return cached;
+        this.logger.debug('Returning cached user analytics', { tenantId, workspaceId })
+        return cached
       }
     }
 
     // Calculate user analytics
-    const startTime = Date.now();
-    const result = await this.metricsService.calculateUserAnalytics(
-      tenantId,
-      workspaceId,
-      query,
-    );
+    const startTime = Date.now()
+    const result = await this.metricsService.calculateUserAnalytics(tenantId, workspaceId, query)
 
-    const duration = Date.now() - startTime;
+    const duration = Date.now() - startTime
     this.logger.log('User analytics calculated', {
       tenantId,
       workspaceId,
       duration,
       totalVisitors: result.summary.total_visitors,
-    });
+    })
 
     // Cache the result
     if (this.cacheService.shouldCache(query.period, startDate, endDate)) {
-      const ttl = this.cacheService.getCacheTTL(query.period, 'users');
-      await this.cacheService.set(cacheKey, result, ttl);
+      const ttl = this.cacheService.getCacheTTL(query.period, 'users')
+      await this.cacheService.set(cacheKey, result, ttl)
     }
 
-    return result;
+    return result
   }
 
   /**
@@ -312,23 +296,23 @@ export class AnalyticsService {
   async getEventDetails(
     tenantId: bigint,
     workspaceId: bigint,
-    query: EventDetailsQueryDto,
+    query: EventDetailsQueryDto
   ): Promise<EventDetailsResponse> {
     // Validate inputs
-    this.validateTenantWorkspace(tenantId, workspaceId);
-    this.validateTimezone(query.timezone);
-    this.validatePagination(query.page, query.limit);
+    this.validateTenantWorkspace(tenantId, workspaceId)
+    this.validateTimezone(query.timezone)
+    this.validatePagination(query.page, query.limit)
 
     // Event details are typically not cached due to frequent changes and specific filtering
     const { start: startDate, end: endDate } = PeriodUtils.calculatePeriod(
       query.period,
       query.startDate,
       query.endDate,
-      query.timezone,
-    );
+      query.timezone
+    )
 
     // Get event details
-    const startTime = Date.now();
+    const startTime = Date.now()
     const { events, totalCount } = await this.analyticsRepository.getEventDetails(
       tenantId,
       workspaceId,
@@ -346,10 +330,10 @@ export class AnalyticsService {
         limit: query.limit || 50,
         sortBy: query.sort_by || 'timestamp',
         sortOrder: query.sort_order || 'desc',
-      },
-    );
+      }
+    )
 
-    const duration = Date.now() - startTime;
+    const duration = Date.now() - startTime
     this.logger.log('Event details retrieved', {
       tenantId,
       workspaceId,
@@ -357,21 +341,21 @@ export class AnalyticsService {
       eventCount: events.length,
       totalCount,
       page: query.page,
-    });
+    })
 
     // Calculate pagination info
-    const page = query.page || 1;
-    const limit = query.limit || 50;
-    const totalPages = Math.ceil(totalCount / limit);
-    const hasNextPage = page < totalPages;
-    const hasPreviousPage = page > 1;
+    const page = query.page || 1
+    const limit = query.limit || 50
+    const totalPages = Math.ceil(totalCount / limit)
+    const hasNextPage = page < totalPages
+    const hasPreviousPage = page > 1
 
     return {
       period: PeriodUtils.createPeriodInfo(
         query.period,
         startDate,
         endDate,
-        query.timezone || 'UTC',
+        query.timezone || 'UTC'
       ),
       events,
       pagination: {
@@ -389,7 +373,7 @@ export class AnalyticsService {
         session_id: query.session_id,
         has_lead: query.has_lead,
       },
-    };
+    }
   }
 
   /**
@@ -398,14 +382,14 @@ export class AnalyticsService {
   async exportData(
     tenantId: bigint,
     workspaceId: bigint,
-    query: ExportRequestDto,
+    query: ExportRequestDto
   ): Promise<ExportResponse> {
     // Validate inputs
-    this.validateTenantWorkspace(tenantId, workspaceId);
-    this.validateTimezone(query.timezone);
+    this.validateTenantWorkspace(tenantId, workspaceId)
+    this.validateTimezone(query.timezone)
 
     // Generate export ID
-    const exportId = `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const exportId = `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
     this.logger.log('Export requested', {
       exportId,
@@ -413,7 +397,7 @@ export class AnalyticsService {
       workspaceId,
       dataType: query.dataset,
       format: query.format,
-    });
+    })
 
     // For now, return immediate response indicating async processing
     // In a real implementation, this would queue a background job
@@ -423,7 +407,7 @@ export class AnalyticsService {
       created_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
       format: query.format,
-    };
+    }
   }
 
   /**
@@ -432,19 +416,19 @@ export class AnalyticsService {
   async getExportStatus(
     tenantId: bigint,
     workspaceId: bigint,
-    exportId: string,
+    exportId: string
   ): Promise<ExportResponse> {
     // Validate inputs
-    this.validateTenantWorkspace(tenantId, workspaceId);
+    this.validateTenantWorkspace(tenantId, workspaceId)
 
     if (!exportId.startsWith('exp_')) {
-      throw new BadRequestException('Invalid export ID format');
+      throw new BadRequestException('Invalid export ID format')
     }
 
     // In a real implementation, this would check a database or queue system
     // For now, simulate completion
-    const isRecent = exportId.includes(Date.now().toString().substr(0, 10));
-    
+    const isRecent = exportId.includes(Date.now().toString().substr(0, 10))
+
     if (isRecent) {
       return {
         export_id: exportId,
@@ -453,56 +437,53 @@ export class AnalyticsService {
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         created_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(), // 2 minutes ago
         format: 'json', // Default format
-      };
+      }
     }
 
-    throw new NotFoundException('Export not found or expired');
+    throw new NotFoundException('Export not found or expired')
   }
 
   /**
    * Clear analytics cache for tenant/workspace
    */
   async clearCache(tenantId: bigint, workspaceId: bigint): Promise<void> {
-    await this.cacheService.clearTenantCache(
-      tenantId.toString(),
-      workspaceId.toString(),
-    );
+    await this.cacheService.clearTenantCache(tenantId.toString(), workspaceId.toString())
 
-    this.logger.log('Analytics cache cleared', { tenantId, workspaceId });
+    this.logger.log('Analytics cache cleared', { tenantId, workspaceId })
   }
 
   // Validation helpers
   private validateTenantWorkspace(tenantId: bigint, workspaceId: bigint): void {
     if (!tenantId || tenantId <= 0) {
-      throw new BadRequestException('Invalid tenant ID');
+      throw new BadRequestException('Invalid tenant ID')
     }
     if (!workspaceId || workspaceId <= 0) {
-      throw new BadRequestException('Invalid workspace ID');
+      throw new BadRequestException('Invalid workspace ID')
     }
   }
 
   private validateTimezone(timezone: string | undefined): void {
-    const tz = timezone || 'UTC';
+    const tz = timezone || 'UTC'
     if (!TimezoneUtils.isValidTimezone(tz)) {
-      throw new BadRequestException(`Invalid timezone: ${tz}`);
+      throw new BadRequestException(`Invalid timezone: ${tz}`)
     }
   }
 
   private validateLimit(limit: number | undefined, max: number = 100): void {
-    const l = limit || 10;
+    const l = limit || 10
     if (l < 1 || l > max) {
-      throw new BadRequestException(`Limit must be between 1 and ${max}`);
+      throw new BadRequestException(`Limit must be between 1 and ${max}`)
     }
   }
 
   private validatePagination(page: number | undefined, limit: number | undefined): void {
-    const p = page || 1;
-    const l = limit || 50;
+    const p = page || 1
+    const l = limit || 50
     if (p < 1) {
-      throw new BadRequestException('Page must be >= 1');
+      throw new BadRequestException('Page must be >= 1')
     }
     if (l < 1 || l > 1000) {
-      throw new BadRequestException('Limit must be between 1 and 1000');
+      throw new BadRequestException('Limit must be between 1 and 1000')
     }
   }
 }

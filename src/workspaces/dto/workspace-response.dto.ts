@@ -1,35 +1,35 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 
 export class WorkspaceResponseDto {
   @ApiProperty({
     description: 'Workspace ID',
     example: '1',
   })
-  id!: string;
+  id!: string
 
   @ApiProperty({
     description: 'Parent tenant ID',
     example: '1',
   })
-  tenantId!: string;
+  tenantId!: string
 
   @ApiProperty({
     description: 'Workspace name',
     example: 'Production Environment',
   })
-  name!: string;
+  name!: string
 
   @ApiPropertyOptional({
     description: 'Workspace description',
     example: 'Main production environment for analytics',
   })
-  description?: string;
+  description?: string
 
   @ApiProperty({
     description: 'Workspace creation timestamp',
     example: '2024-01-15T10:30:00.000Z',
   })
-  createdAt!: string;
+  createdAt!: string
 
   @ApiPropertyOptional({
     description: 'Workspace-specific settings and configurations',
@@ -40,13 +40,13 @@ export class WorkspaceResponseDto {
       features: ['events', 'analytics', 'funnels'],
     },
   })
-  settings?: Record<string, any>;
+  settings?: Record<string, any>
 
   @ApiPropertyOptional({
     description: 'Environment type for the workspace',
     example: 'production',
   })
-  environment?: string;
+  environment?: string
 
   @ApiPropertyOptional({
     description: 'Workspace-specific limits and quotas',
@@ -56,7 +56,7 @@ export class WorkspaceResponseDto {
       maxUsers: 25,
     },
   })
-  limits?: Record<string, any>;
+  limits?: Record<string, any>
 
   @ApiPropertyOptional({
     description: 'Parent tenant information',
@@ -67,10 +67,10 @@ export class WorkspaceResponseDto {
     },
   })
   tenant?: {
-    id: string;
-    name: string;
-    status: string;
-  };
+    id: string
+    name: string
+    status: string
+  }
 
   @ApiPropertyOptional({
     description: 'Workspace statistics and usage information',
@@ -83,12 +83,12 @@ export class WorkspaceResponseDto {
     },
   })
   stats?: {
-    totalEvents: number;
-    totalUsers: number;
-    totalFunnels: number;
-    totalApiKeys: number;
-    lastActivity?: string;
-  };
+    totalEvents: number
+    totalUsers: number
+    totalFunnels: number
+    totalApiKeys: number
+    lastActivity?: string
+  }
 }
 
 export class WorkspaceListResponseDto {
@@ -96,7 +96,7 @@ export class WorkspaceListResponseDto {
     description: 'Array of workspaces',
     type: [WorkspaceResponseDto],
   })
-  data!: WorkspaceResponseDto[];
+  data!: WorkspaceResponseDto[]
 
   @ApiProperty({
     description: 'Pagination information',
@@ -110,13 +110,13 @@ export class WorkspaceListResponseDto {
     },
   })
   pagination!: {
-    total: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-  };
+    total: number
+    page: number
+    pageSize: number
+    totalPages: number
+    hasNextPage: boolean
+    hasPreviousPage: boolean
+  }
 
   @ApiProperty({
     description: 'Parent tenant information',
@@ -127,8 +127,8 @@ export class WorkspaceListResponseDto {
     },
   })
   tenant!: {
-    id: string;
-    name: string;
-    status: string;
-  };
+    id: string
+    name: string
+    status: string
+  }
 }

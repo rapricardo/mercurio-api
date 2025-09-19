@@ -9,11 +9,7 @@ import { FunnelAnalyticsModule } from '../analytics/funnels/funnel-analytics.mod
 @Module({
   imports: [CommonModule, FunnelAnalyticsModule],
   controllers: [EventsController],
-  providers: [
-    EventProcessorService,
-    EnrichmentService,
-    PrismaService,
-  ],
+  providers: [EventProcessorService, EnrichmentService, PrismaService],
   exports: [EventProcessorService, EnrichmentService],
 })
 export class EventsModule {}

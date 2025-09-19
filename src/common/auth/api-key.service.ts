@@ -1,11 +1,22 @@
-import { Injectable, Logger, NotFoundException, ConflictException, ForbiddenException, BadRequestException } from '@nestjs/common'
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ConflictException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common'
 import { PrismaService } from '../../prisma.service'
 import { ApiKeyValidationResult, HybridTenantContext } from '../types/tenant-context.type'
 import { CacheService } from '../services/cache.service'
 import { CreateApiKeyDto } from '../../api-keys/dto/create-api-key.dto'
 import { UpdateApiKeyDto } from '../../api-keys/dto/update-api-key.dto'
 import { ApiKeyQueryDto } from '../../api-keys/dto/api-key-query.dto'
-import { ApiKeyResponseDto, CreateApiKeyResponseDto, ApiKeyListResponseDto } from '../../api-keys/dto/api-key-response.dto'
+import {
+  ApiKeyResponseDto,
+  CreateApiKeyResponseDto,
+  ApiKeyListResponseDto,
+} from '../../api-keys/dto/api-key-response.dto'
 import crypto from 'node:crypto'
 
 @Injectable()
@@ -16,7 +27,7 @@ export class ApiKeyService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly cache: CacheService,
+    private readonly cache: CacheService
   ) {}
 
   async validateKey(rawApiKey: string): Promise<ApiKeyValidationResult> {
@@ -34,23 +45,23 @@ export class ApiKeyService {
       const cachedResult = this.cache.get<ApiKeyValidationResult>(cacheKey)
       if (cachedResult) {
         this.logger.debug('API key validation cache hit', { keyHash: keyHash.substring(0, 8) })
-        
+
         // Update last used timestamp asynchronously (fire and forget)
         if (cachedResult.isValid && cachedResult.apiKeyId) {
           this.updateLastUsed(cachedResult.apiKeyId).catch((error) => {
-            this.logger.warn('Failed to update API key last used timestamp', { 
+            this.logger.warn('Failed to update API key last used timestamp', {
               apiKeyId: cachedResult.apiKeyId!.toString(),
-              error: error.message 
+              error: error.message,
             })
           })
         }
-        
+
         return cachedResult
       }
 
       // Cache miss - query database
       this.logger.debug('API key validation cache miss', { keyHash: keyHash.substring(0, 8) })
-      
+
       const apiKey = await this.prisma.apiKey.findFirst({
         where: {
           keyHash,
@@ -68,14 +79,16 @@ export class ApiKeyService {
       let result: ApiKeyValidationResult
 
       if (!apiKey) {
-        this.logger.warn('Invalid or revoked API key attempted', { keyHash: keyHash.substring(0, 8) })
+        this.logger.warn('Invalid or revoked API key attempted', {
+          keyHash: keyHash.substring(0, 8),
+        })
         result = { isValid: false, scopes: [] }
       } else {
         // Update last used timestamp (fire and forget)
         this.updateLastUsed(apiKey.id).catch((error) => {
-          this.logger.warn('Failed to update API key last used timestamp', { 
+          this.logger.warn('Failed to update API key last used timestamp', {
             apiKeyId: apiKey.id.toString(),
-            error: error.message 
+            error: error.message,
           })
         })
 
@@ -84,14 +97,14 @@ export class ApiKeyService {
           tenantId: apiKey.workspace.tenantId,
           workspaceId: apiKey.workspaceId,
           apiKeyId: apiKey.id,
-          scopes: Array.isArray(apiKey.scopes) ? apiKey.scopes as string[] : [],
+          scopes: Array.isArray(apiKey.scopes) ? (apiKey.scopes as string[]) : [],
           lastUsedAt: apiKey.lastUsedAt || undefined,
         }
       }
 
       // Cache the result
       this.cache.set(cacheKey, result, this.cacheTtlMs)
-      
+
       return result
     } catch (error) {
       this.logger.error('API key validation failed', {
@@ -181,7 +194,7 @@ export class ApiKeyService {
     tenantId: string,
     workspaceId: string,
     createApiKeyDto: CreateApiKeyDto,
-    context: HybridTenantContext,
+    context: HybridTenantContext
   ): Promise<CreateApiKeyResponseDto> {
     try {
       // Only users can create API keys, not other API keys
@@ -264,7 +277,11 @@ export class ApiKeyService {
         apiKey, // Only returned during creation
       }
     } catch (error) {
-      if (error instanceof ConflictException || error instanceof ForbiddenException || error instanceof NotFoundException) {
+      if (
+        error instanceof ConflictException ||
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException
+      ) {
         throw error
       }
       this.logger.error('Failed to create API key', {
@@ -284,7 +301,7 @@ export class ApiKeyService {
     tenantId: string,
     workspaceId: string,
     query: ApiKeyQueryDto,
-    context: HybridTenantContext,
+    context: HybridTenantContext
   ): Promise<ApiKeyListResponseDto> {
     try {
       // Verify workspace access
@@ -358,7 +375,7 @@ export class ApiKeyService {
         take: query.pageSize,
       })
 
-      const data = apiKeys.map(apiKey => {
+      const data = apiKeys.map((apiKey) => {
         const keyPrefix = `ak_${apiKey.keyHash.substring(0, 8)}...`
         return {
           id: apiKey.id.toString(),
@@ -370,7 +387,7 @@ export class ApiKeyService {
           createdAt: apiKey.createdAt,
           updatedAt: apiKey.createdAt, // Use createdAt since no updatedAt field exists
           revokedAt: apiKey.revokedAt,
-          status: apiKey.revokedAt ? 'revoked' as const : 'active' as const,
+          status: apiKey.revokedAt ? ('revoked' as const) : ('active' as const),
         }
       })
 
@@ -402,7 +419,7 @@ export class ApiKeyService {
     tenantId: string,
     workspaceId: string,
     apiKeyId: string,
-    context: HybridTenantContext,
+    context: HybridTenantContext
   ): Promise<ApiKeyResponseDto> {
     try {
       // Verify access
@@ -442,7 +459,7 @@ export class ApiKeyService {
       }
 
       const keyPrefix = `ak_${apiKey.keyHash.substring(0, 8)}...`
-      
+
       return {
         id: apiKey.id.toString(),
         name: apiKey.name,
@@ -478,7 +495,7 @@ export class ApiKeyService {
     workspaceId: string,
     apiKeyId: string,
     updateApiKeyDto: UpdateApiKeyDto,
-    context: HybridTenantContext,
+    context: HybridTenantContext
   ): Promise<ApiKeyResponseDto> {
     try {
       // Only users can update API keys
@@ -558,7 +575,7 @@ export class ApiKeyService {
       })
 
       const keyPrefix = `ak_${updatedApiKey.keyHash.substring(0, 8)}...`
-      
+
       return {
         id: updatedApiKey.id.toString(),
         name: updatedApiKey.name,
@@ -572,7 +589,11 @@ export class ApiKeyService {
         status: updatedApiKey.revokedAt ? 'revoked' : 'active',
       }
     } catch (error) {
-      if (error instanceof ConflictException || error instanceof ForbiddenException || error instanceof NotFoundException) {
+      if (
+        error instanceof ConflictException ||
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException
+      ) {
         throw error
       }
       this.logger.error('Failed to update API key', {
@@ -593,7 +614,7 @@ export class ApiKeyService {
     tenantId: string,
     workspaceId: string,
     apiKeyId: string,
-    context: HybridTenantContext,
+    context: HybridTenantContext
   ): Promise<{ message: string }> {
     try {
       // Only users can revoke API keys

@@ -1,5 +1,5 @@
-import { IsNotEmpty, IsString, IsOptional, MaxLength, IsEnum } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsString, IsOptional, MaxLength, IsEnum } from 'class-validator'
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 
 export class CreateTenantDto {
   @ApiProperty({
@@ -10,7 +10,7 @@ export class CreateTenantDto {
   @IsNotEmpty()
   @IsString()
   @MaxLength(255, { message: 'Tenant name cannot exceed 255 characters' })
-  name!: string;
+  name!: string
 
   @ApiPropertyOptional({
     description: 'Tenant status',
@@ -22,7 +22,7 @@ export class CreateTenantDto {
   @IsEnum(['active', 'inactive', 'suspended'], {
     message: 'Status must be one of: active, inactive, suspended',
   })
-  status?: string;
+  status?: string
 
   @ApiPropertyOptional({
     description: 'Tenant-specific settings and configurations',
@@ -33,7 +33,7 @@ export class CreateTenantDto {
     },
   })
   @IsOptional()
-  settings?: Record<string, any>;
+  settings?: Record<string, any>
 
   @ApiPropertyOptional({
     description: 'Subscription plan identifier',
@@ -41,7 +41,7 @@ export class CreateTenantDto {
   })
   @IsOptional()
   @IsString()
-  plan?: string;
+  plan?: string
 
   @ApiPropertyOptional({
     description: 'Tenant-specific limits and quotas',
@@ -52,5 +52,5 @@ export class CreateTenantDto {
     },
   })
   @IsOptional()
-  limits?: Record<string, any>;
+  limits?: Record<string, any>
 }

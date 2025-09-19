@@ -1,6 +1,6 @@
-import { IsOptional, IsString, IsEnum, IsNumber, Min, Max } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, IsEnum, IsNumber, Min, Max } from 'class-validator'
+import { Type, Transform } from 'class-transformer'
+import { ApiPropertyOptional } from '@nestjs/swagger'
 
 export class ApiKeyQueryDto {
   @ApiPropertyOptional({
@@ -12,7 +12,7 @@ export class ApiKeyQueryDto {
   @Type(() => Number)
   @IsNumber()
   @Min(1)
-  page?: number = 1;
+  page?: number = 1
 
   @ApiPropertyOptional({
     description: 'Number of items per page',
@@ -25,7 +25,7 @@ export class ApiKeyQueryDto {
   @IsNumber()
   @Min(1)
   @Max(100)
-  pageSize?: number = 20;
+  pageSize?: number = 20
 
   @ApiPropertyOptional({
     description: 'Search term for API key name',
@@ -33,7 +33,7 @@ export class ApiKeyQueryDto {
   })
   @IsOptional()
   @IsString()
-  search?: string;
+  search?: string
 
   @ApiPropertyOptional({
     description: 'Filter by API key status',
@@ -42,7 +42,7 @@ export class ApiKeyQueryDto {
   })
   @IsOptional()
   @IsEnum(['active', 'revoked', 'all'])
-  status?: 'active' | 'revoked' | 'all' = 'active';
+  status?: 'active' | 'revoked' | 'all' = 'active'
 
   @ApiPropertyOptional({
     description: 'Sort field for API keys',
@@ -51,7 +51,7 @@ export class ApiKeyQueryDto {
   })
   @IsOptional()
   @IsEnum(['name', 'createdAt', 'lastUsedAt'])
-  sortBy?: 'name' | 'createdAt' | 'lastUsedAt' = 'createdAt';
+  sortBy?: 'name' | 'createdAt' | 'lastUsedAt' = 'createdAt'
 
   @ApiPropertyOptional({
     description: 'Sort order',
@@ -60,7 +60,7 @@ export class ApiKeyQueryDto {
   })
   @IsOptional()
   @IsEnum(['asc', 'desc'])
-  sortOrder?: 'asc' | 'desc' = 'desc';
+  sortOrder?: 'asc' | 'desc' = 'desc'
 
   @ApiPropertyOptional({
     description: 'Filter by specific scope',
@@ -68,5 +68,5 @@ export class ApiKeyQueryDto {
   })
   @IsOptional()
   @IsString()
-  scope?: string;
+  scope?: string
 }

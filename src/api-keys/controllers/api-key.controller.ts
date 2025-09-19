@@ -11,7 +11,7 @@ import {
   Req,
   HttpStatus,
   HttpCode,
-} from '@nestjs/common';
+} from '@nestjs/common'
 import {
   ApiTags,
   ApiOperation,
@@ -20,14 +20,18 @@ import {
   ApiQuery,
   ApiBearerAuth,
   ApiSecurity,
-} from '@nestjs/swagger';
-import { FastifyRequest } from 'fastify';
-import { HybridAuthGuard, HybridTenantContext } from '../../common/auth/hybrid-auth.guard';
-import { ApiKeyService } from '../../common/auth/api-key.service';
-import { CreateApiKeyDto } from '../dto/create-api-key.dto';
-import { UpdateApiKeyDto } from '../dto/update-api-key.dto';
-import { ApiKeyQueryDto } from '../dto/api-key-query.dto';
-import { ApiKeyResponseDto, CreateApiKeyResponseDto, ApiKeyListResponseDto } from '../dto/api-key-response.dto';
+} from '@nestjs/swagger'
+import { FastifyRequest } from 'fastify'
+import { HybridAuthGuard, HybridTenantContext } from '../../common/auth/hybrid-auth.guard'
+import { ApiKeyService } from '../../common/auth/api-key.service'
+import { CreateApiKeyDto } from '../dto/create-api-key.dto'
+import { UpdateApiKeyDto } from '../dto/update-api-key.dto'
+import { ApiKeyQueryDto } from '../dto/api-key-query.dto'
+import {
+  ApiKeyResponseDto,
+  CreateApiKeyResponseDto,
+  ApiKeyListResponseDto,
+} from '../dto/api-key-response.dto'
 
 @ApiTags('API Keys')
 @ApiBearerAuth()
@@ -40,7 +44,8 @@ export class ApiKeyController {
   @Get()
   @ApiOperation({
     summary: 'List workspace API keys',
-    description: 'Retrieve a paginated list of API keys for a specific workspace. Users can see all workspace API keys they have access to. API keys can only see themselves.',
+    description:
+      'Retrieve a paginated list of API keys for a specific workspace. Users can see all workspace API keys they have access to. API keys can only see themselves.',
   })
   @ApiParam({
     name: 'tenantId',
@@ -117,16 +122,17 @@ export class ApiKeyController {
     @Param('tenantId') tenantId: string,
     @Param('workspaceId') workspaceId: string,
     @Query() query: ApiKeyQueryDto,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<ApiKeyListResponseDto> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.apiKeyService.findApiKeys(tenantId, workspaceId, query, context);
+    const context = request.tenantContext as HybridTenantContext
+    return this.apiKeyService.findApiKeys(tenantId, workspaceId, query, context)
   }
 
   @Get(':apiKeyId')
   @ApiOperation({
     summary: 'Get API key by ID',
-    description: 'Retrieve detailed information about a specific API key within a workspace. Users can access API keys in workspaces they have permissions for. API keys can only access themselves.',
+    description:
+      'Retrieve detailed information about a specific API key within a workspace. Users can access API keys in workspaces they have permissions for. API keys can only access themselves.',
   })
   @ApiParam({
     name: 'tenantId',
@@ -167,17 +173,18 @@ export class ApiKeyController {
     @Param('tenantId') tenantId: string,
     @Param('workspaceId') workspaceId: string,
     @Param('apiKeyId') apiKeyId: string,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<ApiKeyResponseDto> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.apiKeyService.findApiKeyById(tenantId, workspaceId, apiKeyId, context);
+    const context = request.tenantContext as HybridTenantContext
+    return this.apiKeyService.findApiKeyById(tenantId, workspaceId, apiKeyId, context)
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a new API key',
-    description: 'Create a new API key within a workspace. Only admin and editor users can create API keys. API keys cannot create other API keys. Returns the full API key only during creation.',
+    description:
+      'Create a new API key within a workspace. Only admin and editor users can create API keys. API keys cannot create other API keys. Returns the full API key only during creation.',
   })
   @ApiParam({
     name: 'tenantId',
@@ -220,16 +227,17 @@ export class ApiKeyController {
     @Param('tenantId') tenantId: string,
     @Param('workspaceId') workspaceId: string,
     @Body() createApiKeyDto: CreateApiKeyDto,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<CreateApiKeyResponseDto> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.apiKeyService.createApiKey(tenantId, workspaceId, createApiKeyDto, context);
+    const context = request.tenantContext as HybridTenantContext
+    return this.apiKeyService.createApiKey(tenantId, workspaceId, createApiKeyDto, context)
   }
 
   @Patch(':apiKeyId')
   @ApiOperation({
     summary: 'Update API key',
-    description: 'Update API key information within a workspace. Only admin and editor users can update API keys. API keys cannot update themselves.',
+    description:
+      'Update API key information within a workspace. Only admin and editor users can update API keys. API keys cannot update themselves.',
   })
   @ApiParam({
     name: 'tenantId',
@@ -279,17 +287,24 @@ export class ApiKeyController {
     @Param('workspaceId') workspaceId: string,
     @Param('apiKeyId') apiKeyId: string,
     @Body() updateApiKeyDto: UpdateApiKeyDto,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<ApiKeyResponseDto> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.apiKeyService.updateApiKey(tenantId, workspaceId, apiKeyId, updateApiKeyDto, context);
+    const context = request.tenantContext as HybridTenantContext
+    return this.apiKeyService.updateApiKey(
+      tenantId,
+      workspaceId,
+      apiKeyId,
+      updateApiKeyDto,
+      context
+    )
   }
 
   @Delete(':apiKeyId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Revoke API key',
-    description: 'Revoke (soft delete) an API key within a workspace. Only admin and editor users can revoke API keys. API keys cannot revoke themselves. Revoked keys become inactive immediately.',
+    description:
+      'Revoke (soft delete) an API key within a workspace. Only admin and editor users can revoke API keys. API keys cannot revoke themselves. Revoked keys become inactive immediately.',
   })
   @ApiParam({
     name: 'tenantId',
@@ -338,9 +353,9 @@ export class ApiKeyController {
     @Param('tenantId') tenantId: string,
     @Param('workspaceId') workspaceId: string,
     @Param('apiKeyId') apiKeyId: string,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<{ message: string }> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.apiKeyService.revokeApiKey(tenantId, workspaceId, apiKeyId, context);
+    const context = request.tenantContext as HybridTenantContext
+    return this.apiKeyService.revokeApiKey(tenantId, workspaceId, apiKeyId, context)
   }
 }

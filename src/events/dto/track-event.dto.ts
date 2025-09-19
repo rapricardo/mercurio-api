@@ -55,14 +55,16 @@ export class TrackEventDto {
 
   @IsString()
   @Matches(/^a_[a-zA-Z0-9_]+$/, {
-    message: 'anonymous_id must start with "a_" and contain only alphanumeric characters and underscores'
+    message:
+      'anonymous_id must start with "a_" and contain only alphanumeric characters and underscores',
   })
   anonymous_id!: string
 
   @IsOptional()
   @IsString()
   @Matches(/^s_[a-zA-Z0-9_]+$/, {
-    message: 'session_id must start with "s_" and contain only alphanumeric characters and underscores'
+    message:
+      'session_id must start with "s_" and contain only alphanumeric characters and underscores',
   })
   session_id?: string
 
@@ -79,11 +81,11 @@ export class TrackEventDto {
   geo?: Record<string, any>
 
   @IsOptional()
-  @Transform(({ value }) => value && typeof value === 'object' ? value : undefined)
+  @Transform(({ value }) => (value && typeof value === 'object' ? value : undefined))
   page?: PageInfoDto
 
   @IsOptional()
-  @Transform(({ value }) => value && typeof value === 'object' ? value : undefined)
+  @Transform(({ value }) => (value && typeof value === 'object' ? value : undefined))
   utm?: UtmParametersDto
 }
 
@@ -95,7 +97,8 @@ export class BatchEventDto {
 export class IdentifyEventDto {
   @IsString()
   @Matches(/^a_[a-zA-Z0-9_]+$/, {
-    message: 'anonymous_id must start with "a_" and contain only alphanumeric characters and underscores'
+    message:
+      'anonymous_id must start with "a_" and contain only alphanumeric characters and underscores',
   })
   anonymous_id!: string
 

@@ -77,14 +77,15 @@ export class EnrichmentService {
 
   private isValidIP(ip: string): boolean {
     // Basic IP validation (both IPv4 and IPv6)
-    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
+    const ipv4Regex =
+      /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
     const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/
-    
+
     // Skip private/local IPs for security
     if (ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.')) {
       return false
     }
-    
+
     return ipv4Regex.test(ip) || ipv6Regex.test(ip)
   }
 
@@ -181,27 +182,28 @@ export class EnrichmentService {
    * Extract schema version from X-Event-Schema-Version header
    */
   private extractSchemaVersion(request: FastifyRequest): string {
-    const headerVersion = request.headers['x-event-schema-version'] as string;
-    
+    const headerVersion = request.headers['x-event-schema-version'] as string
+
     if (headerVersion) {
       // Basic semver validation
       if (this.isValidSemver(headerVersion)) {
-        return headerVersion;
+        return headerVersion
       } else {
         // Log invalid version for monitoring
-        this.logger.warn(`[Schema] Invalid version format: ${headerVersion}`);
+        this.logger.warn(`[Schema] Invalid version format: ${headerVersion}`)
       }
     }
-    
-    return this.DEFAULT_SCHEMA_VERSION; // Default fallback
+
+    return this.DEFAULT_SCHEMA_VERSION // Default fallback
   }
 
   /**
    * Validate if version string follows semver pattern
    */
   private isValidSemver(version: string): boolean {
-    const semverRegex = /^(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/;
-    return semverRegex.test(version);
+    const semverRegex =
+      /^(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/
+    return semverRegex.test(version)
   }
 
   /**

@@ -1,5 +1,5 @@
-import { IsNotEmpty, IsString, IsOptional, MaxLength } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsString, IsOptional, MaxLength } from 'class-validator'
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 
 export class CreateWorkspaceDto {
   @ApiProperty({
@@ -10,7 +10,7 @@ export class CreateWorkspaceDto {
   @IsNotEmpty()
   @IsString()
   @MaxLength(255, { message: 'Workspace name cannot exceed 255 characters' })
-  name!: string;
+  name!: string
 
   @ApiPropertyOptional({
     description: 'Workspace description',
@@ -20,7 +20,7 @@ export class CreateWorkspaceDto {
   @IsOptional()
   @IsString()
   @MaxLength(500, { message: 'Description cannot exceed 500 characters' })
-  description?: string;
+  description?: string
 
   @ApiPropertyOptional({
     description: 'Workspace-specific settings and configurations',
@@ -32,7 +32,7 @@ export class CreateWorkspaceDto {
     },
   })
   @IsOptional()
-  settings?: Record<string, any>;
+  settings?: Record<string, any>
 
   @ApiPropertyOptional({
     description: 'Environment type for the workspace',
@@ -40,7 +40,7 @@ export class CreateWorkspaceDto {
   })
   @IsOptional()
   @IsString()
-  environment?: string;
+  environment?: string
 
   @ApiPropertyOptional({
     description: 'Workspace-specific limits and quotas',
@@ -51,5 +51,5 @@ export class CreateWorkspaceDto {
     },
   })
   @IsOptional()
-  limits?: Record<string, any>;
+  limits?: Record<string, any>
 }

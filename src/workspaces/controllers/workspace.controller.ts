@@ -11,7 +11,7 @@ import {
   Req,
   HttpStatus,
   HttpCode,
-} from '@nestjs/common';
+} from '@nestjs/common'
 import {
   ApiTags,
   ApiOperation,
@@ -20,14 +20,14 @@ import {
   ApiQuery,
   ApiBearerAuth,
   ApiSecurity,
-} from '@nestjs/swagger';
-import { FastifyRequest } from 'fastify';
-import { HybridAuthGuard, HybridTenantContext } from '../../common/auth/hybrid-auth.guard';
-import { WorkspaceService } from '../services/workspace.service';
-import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
-import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
-import { WorkspaceResponseDto, WorkspaceListResponseDto } from '../dto/workspace-response.dto';
-import { WorkspaceQueryDto } from '../dto/workspace-query.dto';
+} from '@nestjs/swagger'
+import { FastifyRequest } from 'fastify'
+import { HybridAuthGuard, HybridTenantContext } from '../../common/auth/hybrid-auth.guard'
+import { WorkspaceService } from '../services/workspace.service'
+import { CreateWorkspaceDto } from '../dto/create-workspace.dto'
+import { UpdateWorkspaceDto } from '../dto/update-workspace.dto'
+import { WorkspaceResponseDto, WorkspaceListResponseDto } from '../dto/workspace-response.dto'
+import { WorkspaceQueryDto } from '../dto/workspace-query.dto'
 
 @ApiTags('Workspaces')
 @ApiBearerAuth()
@@ -40,7 +40,8 @@ export class WorkspaceController {
   @Get()
   @ApiOperation({
     summary: 'List tenant workspaces',
-    description: 'Retrieve a paginated list of workspaces for a specific tenant. Users can only see workspaces they have access to. API keys can only see their own workspace.',
+    description:
+      'Retrieve a paginated list of workspaces for a specific tenant. Users can only see workspaces they have access to. API keys can only see their own workspace.',
   })
   @ApiParam({
     name: 'tenantId',
@@ -116,16 +117,17 @@ export class WorkspaceController {
   async findAll(
     @Param('tenantId') tenantId: string,
     @Query() query: WorkspaceQueryDto,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<WorkspaceListResponseDto> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.workspaceService.findAll(tenantId, context, query);
+    const context = request.tenantContext as HybridTenantContext
+    return this.workspaceService.findAll(tenantId, context, query)
   }
 
   @Get(':workspaceId')
   @ApiOperation({
     summary: 'Get workspace by ID',
-    description: 'Retrieve detailed information about a specific workspace within a tenant. Users can only access workspaces they have permissions for.',
+    description:
+      'Retrieve detailed information about a specific workspace within a tenant. Users can only access workspaces they have permissions for.',
   })
   @ApiParam({
     name: 'tenantId',
@@ -159,17 +161,18 @@ export class WorkspaceController {
   async findOne(
     @Param('tenantId') tenantId: string,
     @Param('workspaceId') workspaceId: string,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<WorkspaceResponseDto> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.workspaceService.findOne(tenantId, workspaceId, context);
+    const context = request.tenantContext as HybridTenantContext
+    return this.workspaceService.findOne(tenantId, workspaceId, context)
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a new workspace',
-    description: 'Create a new workspace within a tenant. Admin and editor users can create workspaces. API keys cannot create workspaces.',
+    description:
+      'Create a new workspace within a tenant. Admin and editor users can create workspaces. API keys cannot create workspaces.',
   })
   @ApiParam({
     name: 'tenantId',
@@ -205,16 +208,17 @@ export class WorkspaceController {
   async create(
     @Param('tenantId') tenantId: string,
     @Body() createWorkspaceDto: CreateWorkspaceDto,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<WorkspaceResponseDto> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.workspaceService.create(tenantId, createWorkspaceDto, context);
+    const context = request.tenantContext as HybridTenantContext
+    return this.workspaceService.create(tenantId, createWorkspaceDto, context)
   }
 
   @Patch(':workspaceId')
   @ApiOperation({
     summary: 'Update workspace',
-    description: 'Update workspace information within a tenant. Admin and editor users can update workspaces. API keys cannot update workspaces.',
+    description:
+      'Update workspace information within a tenant. Admin and editor users can update workspaces. API keys cannot update workspaces.',
   })
   @ApiParam({
     name: 'tenantId',
@@ -257,17 +261,18 @@ export class WorkspaceController {
     @Param('tenantId') tenantId: string,
     @Param('workspaceId') workspaceId: string,
     @Body() updateWorkspaceDto: UpdateWorkspaceDto,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<WorkspaceResponseDto> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.workspaceService.update(tenantId, workspaceId, updateWorkspaceDto, context);
+    const context = request.tenantContext as HybridTenantContext
+    return this.workspaceService.update(tenantId, workspaceId, updateWorkspaceDto, context)
   }
 
   @Delete(':workspaceId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Delete workspace',
-    description: 'Delete a workspace and all its associated data within a tenant. Only admin users can delete workspaces. Workspaces with active data cannot be deleted.',
+    description:
+      'Delete a workspace and all its associated data within a tenant. Only admin users can delete workspaces. Workspaces with active data cannot be deleted.',
   })
   @ApiParam({
     name: 'tenantId',
@@ -313,16 +318,17 @@ export class WorkspaceController {
   async remove(
     @Param('tenantId') tenantId: string,
     @Param('workspaceId') workspaceId: string,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<{ message: string }> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.workspaceService.delete(tenantId, workspaceId, context);
+    const context = request.tenantContext as HybridTenantContext
+    return this.workspaceService.delete(tenantId, workspaceId, context)
   }
 
   @Get(':workspaceId/data-impact')
   @ApiOperation({
     summary: 'Get workspace data impact',
-    description: 'Retrieve data impact information for workspace deletion - shows how many API keys, events, funnels, and users would be affected.',
+    description:
+      'Retrieve data impact information for workspace deletion - shows how many API keys, events, funnels, and users would be affected.',
   })
   @ApiParam({
     name: 'tenantId',
@@ -364,14 +370,14 @@ export class WorkspaceController {
   async getDataImpact(
     @Param('tenantId') tenantId: string,
     @Param('workspaceId') workspaceId: string,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<{
-    apiKeys: number;
-    events: number;
-    funnels: number;
-    users: number;
+    apiKeys: number
+    events: number
+    funnels: number
+    users: number
   }> {
-    const context = request.tenantContext as HybridTenantContext;
-    return this.workspaceService.getDataImpact(tenantId, workspaceId, context);
+    const context = request.tenantContext as HybridTenantContext
+    return this.workspaceService.getDataImpact(tenantId, workspaceId, context)
   }
 }

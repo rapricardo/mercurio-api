@@ -1,26 +1,26 @@
-import 'fastify';
-import { TenantContext } from './tenant-context.type';
+import 'fastify'
+import { TenantContext } from './tenant-context.type'
 
 declare module 'fastify' {
   interface FastifyRequest {
-    [key: string]: any;
+    [key: string]: any
     requestContext?: {
-      requestId: string;
-      tenantId?: bigint;
-      workspaceId?: bigint;
-    };
+      requestId: string
+      tenantId?: bigint
+      workspaceId?: bigint
+    }
   }
 }
 
 declare global {
   namespace NodeJS {
     interface IncomingMessage {
-      [key: string]: any;
+      [key: string]: any
       requestContext?: {
-        requestId: string;
-        tenantId?: bigint;
-        workspaceId?: bigint;
-      };
+        requestId: string
+        tenantId?: bigint
+        workspaceId?: bigint
+      }
     }
   }
 }

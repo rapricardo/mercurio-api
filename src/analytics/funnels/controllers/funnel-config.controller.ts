@@ -12,18 +12,18 @@ import {
   HttpStatus,
   Logger,
   ParseIntPipe,
-} from '@nestjs/common';
-import { FunnelConfigService } from '../services/funnel-config.service';
-import { HybridAuthGuard } from '../../../common/auth/hybrid-auth.guard';
-import { CurrentTenant } from '../../../common/context/tenant-context.provider';
-import type { HybridTenantContext } from '../../../common/types/tenant-context.type';
-import { MetricsService } from '../../../common/services/metrics.service';
+} from '@nestjs/common'
+import { FunnelConfigService } from '../services/funnel-config.service'
+import { HybridAuthGuard } from '../../../common/auth/hybrid-auth.guard'
+import { CurrentTenant } from '../../../common/context/tenant-context.provider'
+import type { HybridTenantContext } from '../../../common/types/tenant-context.type'
+import { MetricsService } from '../../../common/services/metrics.service'
 import {
   CreateFunnelRequestDto,
   UpdateFunnelRequestDto,
   ListFunnelsQueryDto,
   PublishFunnelRequestDto,
-} from '../dto/funnel-request.dto';
+} from '../dto/funnel-request.dto'
 import {
   FunnelResponseDto,
   ListFunnelsResponseDto,
@@ -31,16 +31,16 @@ import {
   UpdateFunnelResponseDto,
   ArchiveFunnelResponseDto,
   PublishFunnelResponseDto,
-} from '../dto/funnel-response.dto';
+} from '../dto/funnel-response.dto'
 
 @Controller('v1/analytics/funnels')
 @UseGuards(HybridAuthGuard)
 export class FunnelConfigController {
-  private readonly logger = new Logger(FunnelConfigController.name);
+  private readonly logger = new Logger(FunnelConfigController.name)
 
   constructor(
     private readonly funnelConfigService: FunnelConfigService,
-    private readonly metrics: MetricsService,
+    private readonly metrics: MetricsService
   ) {}
 
   /**
@@ -50,24 +50,24 @@ export class FunnelConfigController {
     operation: string,
     duration: number,
     tenantId: string,
-    success: boolean = true,
+    success: boolean = true
   ): void {
-    this.metrics.incrementCounter(`funnels.config.${operation}_requests`);
-    this.metrics.recordLatency('funnels.config.operation_latency', duration);
-    
+    this.metrics.incrementCounter(`funnels.config.${operation}_requests`)
+    this.metrics.recordLatency('funnels.config.operation_latency', duration)
+
     if (!success) {
-      this.metrics.incrementCounter(`funnels.config.${operation}_errors`);
+      this.metrics.incrementCounter(`funnels.config.${operation}_errors`)
     }
 
     if (duration > 1000) {
-      this.metrics.incrementCounter('funnels.config.slow_operations');
+      this.metrics.incrementCounter('funnels.config.slow_operations')
       this.logger.warn('Slow funnel configuration operation detected', {
         operation,
         duration,
         tenantId,
         threshold: 1000,
         performance_alert: true,
-      });
+      })
     }
   }
 
@@ -79,19 +79,19 @@ export class FunnelConfigController {
   @HttpCode(HttpStatus.CREATED)
   async createFunnel(
     @Body() request: CreateFunnelRequestDto,
-    @CurrentTenant() tenant: HybridTenantContext,
+    @CurrentTenant() tenant: HybridTenantContext
   ): Promise<CreateFunnelResponseDto> {
-    const startTime = Date.now();
+    const startTime = Date.now()
 
     try {
       const result = await this.funnelConfigService.createFunnel(
         tenant.tenantId,
         tenant.workspaceId,
-        request,
-      );
+        request
+      )
 
-      const duration = Date.now() - startTime;
-      this.recordMetrics('create', duration, tenant.tenantId.toString(), true);
+      const duration = Date.now() - startTime
+      this.recordMetrics('create', duration, tenant.tenantId.toString(), true)
 
       this.logger.log('Funnel created successfully', {
         tenantId: tenant.tenantId.toString(),
@@ -100,12 +100,12 @@ export class FunnelConfigController {
         name: request.name,
         stepCount: request.steps.length,
         duration,
-      });
+      })
 
-      return result;
+      return result
     } catch (error) {
-      const duration = Date.now() - startTime;
-      this.recordMetrics('create', duration, tenant.tenantId.toString(), false);
+      const duration = Date.now() - startTime
+      this.recordMetrics('create', duration, tenant.tenantId.toString(), false)
 
       this.logger.error('Failed to create funnel', {
         tenantId: tenant.tenantId.toString(),
@@ -113,8 +113,8 @@ export class FunnelConfigController {
         name: request.name,
         error: error instanceof Error ? error.message : 'Unknown error',
         duration,
-      });
-      throw error;
+      })
+      throw error
     }
   }
 
@@ -126,19 +126,19 @@ export class FunnelConfigController {
   @HttpCode(HttpStatus.OK)
   async listFunnels(
     @Query() query: ListFunnelsQueryDto,
-    @CurrentTenant() tenant: HybridTenantContext,
+    @CurrentTenant() tenant: HybridTenantContext
   ): Promise<ListFunnelsResponseDto> {
-    const startTime = Date.now();
+    const startTime = Date.now()
 
     try {
       const result = await this.funnelConfigService.listFunnels(
         tenant.tenantId,
         tenant.workspaceId,
-        query,
-      );
+        query
+      )
 
-      const duration = Date.now() - startTime;
-      this.recordMetrics('list', duration, tenant.tenantId.toString(), true);
+      const duration = Date.now() - startTime
+      this.recordMetrics('list', duration, tenant.tenantId.toString(), true)
 
       this.logger.log('Funnels listed successfully', {
         tenantId: tenant.tenantId.toString(),
@@ -148,20 +148,20 @@ export class FunnelConfigController {
         totalCount: result.pagination.total_count,
         returnedCount: result.funnels.length,
         duration,
-      });
+      })
 
-      return result;
+      return result
     } catch (error) {
-      const duration = Date.now() - startTime;
-      this.recordMetrics('list', duration, tenant.tenantId.toString(), false);
+      const duration = Date.now() - startTime
+      this.recordMetrics('list', duration, tenant.tenantId.toString(), false)
 
       this.logger.error('Failed to list funnels', {
         tenantId: tenant.tenantId.toString(),
         workspaceId: tenant.workspaceId.toString(),
         error: error instanceof Error ? error.message : 'Unknown error',
         duration,
-      });
-      throw error;
+      })
+      throw error
     }
   }
 
@@ -173,19 +173,19 @@ export class FunnelConfigController {
   @HttpCode(HttpStatus.OK)
   async getFunnelById(
     @Param('id') id: string,
-    @CurrentTenant() tenant: HybridTenantContext,
+    @CurrentTenant() tenant: HybridTenantContext
   ): Promise<FunnelResponseDto> {
-    const startTime = Date.now();
+    const startTime = Date.now()
 
     try {
       const result = await this.funnelConfigService.getFunnelById(
         id,
         tenant.tenantId,
-        tenant.workspaceId,
-      );
+        tenant.workspaceId
+      )
 
-      const duration = Date.now() - startTime;
-      this.recordMetrics('get', duration, tenant.tenantId.toString(), true);
+      const duration = Date.now() - startTime
+      this.recordMetrics('get', duration, tenant.tenantId.toString(), true)
 
       this.logger.log('Funnel retrieved successfully', {
         tenantId: tenant.tenantId.toString(),
@@ -194,12 +194,12 @@ export class FunnelConfigController {
         name: result.name,
         currentVersion: result.current_version,
         duration,
-      });
+      })
 
-      return result;
+      return result
     } catch (error) {
-      const duration = Date.now() - startTime;
-      this.recordMetrics('get', duration, tenant.tenantId.toString(), false);
+      const duration = Date.now() - startTime
+      this.recordMetrics('get', duration, tenant.tenantId.toString(), false)
 
       this.logger.error('Failed to get funnel', {
         tenantId: tenant.tenantId.toString(),
@@ -207,8 +207,8 @@ export class FunnelConfigController {
         funnelId: id,
         error: error instanceof Error ? error.message : 'Unknown error',
         duration,
-      });
-      throw error;
+      })
+      throw error
     }
   }
 
@@ -221,20 +221,20 @@ export class FunnelConfigController {
   async updateFunnel(
     @Param('id') id: string,
     @Body() request: UpdateFunnelRequestDto,
-    @CurrentTenant() tenant: HybridTenantContext,
+    @CurrentTenant() tenant: HybridTenantContext
   ): Promise<UpdateFunnelResponseDto> {
-    const startTime = Date.now();
+    const startTime = Date.now()
 
     try {
       const result = await this.funnelConfigService.updateFunnel(
         id,
         tenant.tenantId,
         tenant.workspaceId,
-        request,
-      );
+        request
+      )
 
-      const duration = Date.now() - startTime;
-      this.recordMetrics('update', duration, tenant.tenantId.toString(), true);
+      const duration = Date.now() - startTime
+      this.recordMetrics('update', duration, tenant.tenantId.toString(), true)
 
       this.logger.log('Funnel updated successfully', {
         tenantId: tenant.tenantId.toString(),
@@ -243,12 +243,12 @@ export class FunnelConfigController {
         newVersion: result.new_version,
         hasStepChanges: !!request.steps,
         duration,
-      });
+      })
 
-      return result;
+      return result
     } catch (error) {
-      const duration = Date.now() - startTime;
-      this.recordMetrics('update', duration, tenant.tenantId.toString(), false);
+      const duration = Date.now() - startTime
+      this.recordMetrics('update', duration, tenant.tenantId.toString(), false)
 
       this.logger.error('Failed to update funnel', {
         tenantId: tenant.tenantId.toString(),
@@ -256,8 +256,8 @@ export class FunnelConfigController {
         funnelId: id,
         error: error instanceof Error ? error.message : 'Unknown error',
         duration,
-      });
-      throw error;
+      })
+      throw error
     }
   }
 
@@ -269,19 +269,19 @@ export class FunnelConfigController {
   @HttpCode(HttpStatus.OK)
   async archiveFunnel(
     @Param('id') id: string,
-    @CurrentTenant() tenant: HybridTenantContext,
+    @CurrentTenant() tenant: HybridTenantContext
   ): Promise<ArchiveFunnelResponseDto> {
-    const startTime = Date.now();
+    const startTime = Date.now()
 
     try {
       const result = await this.funnelConfigService.archiveFunnel(
         id,
         tenant.tenantId,
-        tenant.workspaceId,
-      );
+        tenant.workspaceId
+      )
 
-      const duration = Date.now() - startTime;
-      this.recordMetrics('archive', duration, tenant.tenantId.toString(), true);
+      const duration = Date.now() - startTime
+      this.recordMetrics('archive', duration, tenant.tenantId.toString(), true)
 
       this.logger.log('Funnel archived successfully', {
         tenantId: tenant.tenantId.toString(),
@@ -289,12 +289,12 @@ export class FunnelConfigController {
         funnelId: id,
         name: result.name,
         duration,
-      });
+      })
 
-      return result;
+      return result
     } catch (error) {
-      const duration = Date.now() - startTime;
-      this.recordMetrics('archive', duration, tenant.tenantId.toString(), false);
+      const duration = Date.now() - startTime
+      this.recordMetrics('archive', duration, tenant.tenantId.toString(), false)
 
       this.logger.error('Failed to archive funnel', {
         tenantId: tenant.tenantId.toString(),
@@ -302,8 +302,8 @@ export class FunnelConfigController {
         funnelId: id,
         error: error instanceof Error ? error.message : 'Unknown error',
         duration,
-      });
-      throw error;
+      })
+      throw error
     }
   }
 
@@ -317,20 +317,20 @@ export class FunnelConfigController {
     @Param('id') id: string,
     @CurrentTenant() tenant: HybridTenantContext,
     @Query('version', new ParseIntPipe({ optional: true })) version?: number,
-    @Body() request: PublishFunnelRequestDto = {},
+    @Body() request: PublishFunnelRequestDto = {}
   ): Promise<PublishFunnelResponseDto> {
-    const startTime = Date.now();
+    const startTime = Date.now()
 
     try {
       // If no version specified, get the latest version
-      let targetVersion = version;
+      let targetVersion = version
       if (!targetVersion) {
         const funnel = await this.funnelConfigService.getFunnelById(
           id,
           tenant.tenantId,
-          tenant.workspaceId,
-        );
-        targetVersion = funnel.current_version;
+          tenant.workspaceId
+        )
+        targetVersion = funnel.current_version
       }
 
       const result = await this.funnelConfigService.publishFunnel(
@@ -339,11 +339,11 @@ export class FunnelConfigController {
         tenant.tenantId,
         tenant.workspaceId,
         request.window_days,
-        request.notes,
-      );
+        request.notes
+      )
 
-      const duration = Date.now() - startTime;
-      this.recordMetrics('publish', duration, tenant.tenantId.toString(), true);
+      const duration = Date.now() - startTime
+      this.recordMetrics('publish', duration, tenant.tenantId.toString(), true)
 
       this.logger.log('Funnel published successfully', {
         tenantId: tenant.tenantId.toString(),
@@ -352,12 +352,12 @@ export class FunnelConfigController {
         version: targetVersion,
         publicationId: result.publication_id,
         duration,
-      });
+      })
 
-      return result;
+      return result
     } catch (error) {
-      const duration = Date.now() - startTime;
-      this.recordMetrics('publish', duration, tenant.tenantId.toString(), false);
+      const duration = Date.now() - startTime
+      this.recordMetrics('publish', duration, tenant.tenantId.toString(), false)
 
       this.logger.error('Failed to publish funnel', {
         tenantId: tenant.tenantId.toString(),
@@ -366,8 +366,8 @@ export class FunnelConfigController {
         version,
         error: error instanceof Error ? error.message : 'Unknown error',
         duration,
-      });
-      throw error;
+      })
+      throw error
     }
   }
 }

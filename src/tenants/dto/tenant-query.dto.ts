@@ -1,6 +1,6 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsNumber, Min, Max, IsEnum } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { ApiPropertyOptional } from '@nestjs/swagger'
+import { IsOptional, IsString, IsNumber, Min, Max, IsEnum } from 'class-validator'
+import { Type, Transform } from 'class-transformer'
 
 export class TenantQueryDto {
   @ApiPropertyOptional({
@@ -13,7 +13,7 @@ export class TenantQueryDto {
   @Type(() => Number)
   @IsNumber()
   @Min(1)
-  page?: number = 1;
+  page?: number = 1
 
   @ApiPropertyOptional({
     description: 'Number of items per page',
@@ -27,7 +27,7 @@ export class TenantQueryDto {
   @IsNumber()
   @Min(1)
   @Max(100)
-  pageSize?: number = 20;
+  pageSize?: number = 20
 
   @ApiPropertyOptional({
     description: 'Search term for tenant name',
@@ -35,7 +35,7 @@ export class TenantQueryDto {
   })
   @IsOptional()
   @IsString()
-  search?: string;
+  search?: string
 
   @ApiPropertyOptional({
     description: 'Filter by tenant status',
@@ -46,7 +46,7 @@ export class TenantQueryDto {
   @IsEnum(['active', 'inactive', 'suspended'], {
     message: 'Status must be one of: active, inactive, suspended',
   })
-  status?: string;
+  status?: string
 
   @ApiPropertyOptional({
     description: 'Filter by subscription plan',
@@ -54,7 +54,7 @@ export class TenantQueryDto {
   })
   @IsOptional()
   @IsString()
-  plan?: string;
+  plan?: string
 
   @ApiPropertyOptional({
     description: 'Sort field',
@@ -66,7 +66,7 @@ export class TenantQueryDto {
   @IsEnum(['name', 'createdAt', 'status'], {
     message: 'Sort field must be one of: name, createdAt, status',
   })
-  sortBy?: string = 'createdAt';
+  sortBy?: string = 'createdAt'
 
   @ApiPropertyOptional({
     description: 'Sort order',
@@ -78,7 +78,7 @@ export class TenantQueryDto {
   @IsEnum(['asc', 'desc'], {
     message: 'Sort order must be either asc or desc',
   })
-  sortOrder?: string = 'desc';
+  sortOrder?: string = 'desc'
 
   @ApiPropertyOptional({
     description: 'Include tenant statistics in response',
@@ -88,9 +88,9 @@ export class TenantQueryDto {
   })
   @IsOptional()
   @Transform(({ value }) => {
-    if (value === 'true' || value === true) return true;
-    if (value === 'false' || value === false) return false;
-    return false;
+    if (value === 'true' || value === true) return true
+    if (value === 'false' || value === false) return false
+    return false
   })
-  includeStats?: boolean = false;
+  includeStats?: boolean = false
 }

@@ -7,11 +7,11 @@ export const CurrentTenant = createParamDecorator(
   (data: unknown, ctx: ExecutionContext): TenantContext => {
     const request = ctx.switchToHttp().getRequest()
     const tenantContext = request[TENANT_CONTEXT_KEY]
-    
+
     if (!tenantContext) {
       throw new Error('Tenant context not found in request. Ensure ApiKeyGuard is applied.')
     }
-    
+
     return tenantContext
-  },
+  }
 )

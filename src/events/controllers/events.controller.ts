@@ -26,15 +26,15 @@ import { FunnelRealtimeService } from '../../analytics/funnels/services/funnel-r
 @Controller('v1/events')
 @UseGuards(HybridAuthGuard, RateLimitGuard)
 export class EventsController {
-  private readonly MAX_BATCH_SIZE = 50           // Sprint 1: Reduced from 1000
-  private readonly MAX_PAYLOAD_SIZE = 256 * 1024  // Sprint 1: 256KB (reduced from 1MB)
+  private readonly MAX_BATCH_SIZE = 50 // Sprint 1: Reduced from 1000
+  private readonly MAX_PAYLOAD_SIZE = 256 * 1024 // Sprint 1: 256KB (reduced from 1MB)
 
   constructor(
     private readonly eventProcessor: EventProcessorService,
     private readonly enrichment: EnrichmentService,
     private readonly logger: MercurioLogger,
     private readonly apiKeyService: ApiKeyService,
-    private readonly funnelRealtime: FunnelRealtimeService,
+    private readonly funnelRealtime: FunnelRealtimeService
   ) {}
 
   @Post('track')
@@ -43,7 +43,7 @@ export class EventsController {
   async trackEvent(
     @Body() trackEvent: TrackEventDto,
     @CurrentTenant() tenant: HybridTenantContext,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<EventResponse> {
     // Validate write permissions
     if (!this.apiKeyService.canWriteEvents(tenant.scopes)) {
@@ -92,16 +92,21 @@ export class EventsController {
 
     if (!result.success) {
       // Log processing failure
-      this.logger.error('Track event processing failed', undefined, {
-        requestId: requestContext?.requestId,
-        tenantId: tenant.tenantId.toString(),
-        workspaceId: tenant.workspaceId.toString(),
-      }, {
-        category: 'api_endpoint',
-        endpoint: 'track',
-        eventName: trackEvent.event_name,
-        errors: result.errors,
-      })
+      this.logger.error(
+        'Track event processing failed',
+        undefined,
+        {
+          requestId: requestContext?.requestId,
+          tenantId: tenant.tenantId.toString(),
+          workspaceId: tenant.workspaceId.toString(),
+        },
+        {
+          category: 'api_endpoint',
+          endpoint: 'track',
+          eventName: trackEvent.event_name,
+          errors: result.errors,
+        }
+      )
 
       throw new BadRequestException({
         error: {
@@ -114,30 +119,35 @@ export class EventsController {
       })
     }
 
-    // Process event for funnels (async, non-blocking)  
-    this.processEventForFunnels(trackEvent, tenant, enrichmentData, result.eventId || '')
-      .catch(error => {
+    // Process event for funnels (async, non-blocking)
+    this.processEventForFunnels(trackEvent, tenant, enrichmentData, result.eventId || '').catch(
+      (error) => {
         this.logger.warn('Funnel processing failed for event', error, {
           requestId: requestContext?.requestId,
           tenantId: tenant.tenantId.toString(),
           workspaceId: tenant.workspaceId.toString(),
           eventId: result.eventId,
         })
-      })
+      }
+    )
 
     // Log successful processing
-    this.logger.log('Track event processed successfully', {
-      requestId: requestContext?.requestId,
-      tenantId: tenant.tenantId.toString(),
-      workspaceId: tenant.workspaceId.toString(),
-      eventId: result.eventId,
-    }, {
-      category: 'api_endpoint', 
-      endpoint: 'track',
-      eventName: trackEvent.event_name,
-      isDuplicate: result.isDuplicate,
-      payloadSize,
-    })
+    this.logger.log(
+      'Track event processed successfully',
+      {
+        requestId: requestContext?.requestId,
+        tenantId: tenant.tenantId.toString(),
+        workspaceId: tenant.workspaceId.toString(),
+        eventId: result.eventId,
+      },
+      {
+        category: 'api_endpoint',
+        endpoint: 'track',
+        eventName: trackEvent.event_name,
+        isDuplicate: result.isDuplicate,
+        payloadSize,
+      }
+    )
 
     return {
       accepted: true,
@@ -152,7 +162,7 @@ export class EventsController {
   async batchEvents(
     @Body() batchDto: BatchEventDto,
     @CurrentTenant() tenant: HybridTenantContext,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<BatchResponse> {
     // Validate write permissions
     if (!this.apiKeyService.canWriteEvents(tenant.scopes)) {
@@ -223,15 +233,16 @@ export class EventsController {
     const batchResult = await this.eventProcessor.processBatchEvents(events, tenant, enrichmentData)
 
     // Process successful events for funnels (async, non-blocking)
-    this.processBatchEventsForFunnels(events, tenant, enrichmentData, batchResult.results)
-      .catch(error => {
+    this.processBatchEventsForFunnels(events, tenant, enrichmentData, batchResult.results).catch(
+      (error) => {
         this.logger.warn('Batch funnel processing failed', error, {
           requestId: requestContext?.requestId,
           tenantId: tenant.tenantId.toString(),
           workspaceId: tenant.workspaceId.toString(),
           batchSize: events.length,
         })
-      })
+      }
+    )
 
     // Transform results to response format
     const results: EventResponse[] = batchResult.results.map((result) => ({
@@ -242,19 +253,23 @@ export class EventsController {
     }))
 
     // Log batch processing results
-    this.logger.log('Batch events processed', {
-      requestId: requestContext?.requestId,
-      tenantId: tenant.tenantId.toString(),
-      workspaceId: tenant.workspaceId.toString(),
-    }, {
-      category: 'api_endpoint',
-      endpoint: 'batch',
-      totalEvents: batchResult.totalProcessed,
-      successful: batchResult.successCount,
-      failed: batchResult.errorCount,
-      payloadSize: JSON.stringify(batchDto).length,
-      duplicates: results.filter(r => r.is_duplicate).length,
-    })
+    this.logger.log(
+      'Batch events processed',
+      {
+        requestId: requestContext?.requestId,
+        tenantId: tenant.tenantId.toString(),
+        workspaceId: tenant.workspaceId.toString(),
+      },
+      {
+        category: 'api_endpoint',
+        endpoint: 'batch',
+        totalEvents: batchResult.totalProcessed,
+        successful: batchResult.successCount,
+        failed: batchResult.errorCount,
+        payloadSize: JSON.stringify(batchDto).length,
+        duplicates: results.filter((r) => r.is_duplicate).length,
+      }
+    )
 
     return {
       accepted: batchResult.successCount,
@@ -270,7 +285,7 @@ export class EventsController {
   async identifyUser(
     @Body() identifyDto: IdentifyEventDto,
     @CurrentTenant() tenant: HybridTenantContext,
-    @Req() request: FastifyRequest,
+    @Req() request: FastifyRequest
   ): Promise<IdentifyResponse> {
     // Validate write permissions
     if (!this.apiKeyService.canWriteEvents(tenant.scopes)) {
@@ -343,20 +358,29 @@ export class EventsController {
     const enrichmentData = this.enrichment.enrichEvent(request)
 
     // Process identification
-    const result = await this.eventProcessor.processIdentifyEvent(identifyDto, tenant, enrichmentData)
+    const result = await this.eventProcessor.processIdentifyEvent(
+      identifyDto,
+      tenant,
+      enrichmentData
+    )
 
     if (!result.success) {
       // Log identification failure
-      this.logger.error('Identity event processing failed', undefined, {
-        requestId: requestContext?.requestId,
-        tenantId: tenant.tenantId.toString(),
-        workspaceId: tenant.workspaceId.toString(),
-      }, {
-        category: 'api_endpoint',
-        endpoint: 'identify',
-        anonymousId: identifyDto.anonymous_id,
-        errors: result.errors,
-      })
+      this.logger.error(
+        'Identity event processing failed',
+        undefined,
+        {
+          requestId: requestContext?.requestId,
+          tenantId: tenant.tenantId.toString(),
+          workspaceId: tenant.workspaceId.toString(),
+        },
+        {
+          category: 'api_endpoint',
+          endpoint: 'identify',
+          anonymousId: identifyDto.anonymous_id,
+          errors: result.errors,
+        }
+      )
 
       throw new BadRequestException({
         error: {
@@ -370,19 +394,23 @@ export class EventsController {
     }
 
     // Log successful identification
-    this.logger.log('Identity event processed successfully', {
-      requestId: requestContext?.requestId,
-      tenantId: tenant.tenantId.toString(),
-      workspaceId: tenant.workspaceId.toString(),
-      leadId: result.leadId,
-    }, {
-      category: 'api_endpoint',
-      endpoint: 'identify',
-      anonymousId: identifyDto.anonymous_id,
-      hasEmail: !!identifyDto.traits?.email,
-      hasUserId: !!identifyDto.user_id,
-      payloadSize,
-    })
+    this.logger.log(
+      'Identity event processed successfully',
+      {
+        requestId: requestContext?.requestId,
+        tenantId: tenant.tenantId.toString(),
+        workspaceId: tenant.workspaceId.toString(),
+        leadId: result.leadId,
+      },
+      {
+        category: 'api_endpoint',
+        endpoint: 'identify',
+        anonymousId: identifyDto.anonymous_id,
+        hasEmail: !!identifyDto.traits?.email,
+        hasUserId: !!identifyDto.user_id,
+        payloadSize,
+      }
+    )
 
     return {
       accepted: true,
@@ -397,7 +425,7 @@ export class EventsController {
     trackEvent: TrackEventDto,
     tenant: HybridTenantContext,
     enrichmentData: any,
-    eventId: string,
+    eventId: string
   ): Promise<void> {
     try {
       // Transform to the format expected by FunnelRealtimeService
@@ -418,15 +446,18 @@ export class EventsController {
 
       // Process event against funnels
       await this.funnelRealtime.processEventForFunnels(eventData)
-
     } catch (error) {
       // Don't throw - this is background processing
-      this.logger.error('Background funnel processing error', error instanceof Error ? error : new Error(String(error)), {
-        tenantId: tenant.tenantId.toString(),
-        workspaceId: tenant.workspaceId.toString(),
-        eventId,
-        eventName: trackEvent.event_name,
-      })
+      this.logger.error(
+        'Background funnel processing error',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          tenantId: tenant.tenantId.toString(),
+          workspaceId: tenant.workspaceId.toString(),
+          eventId,
+          eventName: trackEvent.event_name,
+        }
+      )
     }
   }
 
@@ -437,12 +468,12 @@ export class EventsController {
     events: TrackEventDto[],
     tenant: HybridTenantContext,
     enrichmentData: any[],
-    results: any[],
+    results: any[]
   ): Promise<void> {
     try {
       // Process only successful events for funnels
       const processingPromises = results
-        .filter(result => result.success)
+        .filter((result) => result.success)
         .map(async (result, index) => {
           const trackEvent = events[index]
           const enrichment = enrichmentData[index]
@@ -469,14 +500,17 @@ export class EventsController {
 
       // Process all successful events in parallel
       await Promise.all(processingPromises)
-
     } catch (error) {
       // Don't throw - this is background processing
-      this.logger.error('Background batch funnel processing error', error instanceof Error ? error : new Error(String(error)), {
-        tenantId: tenant.tenantId.toString(),
-        workspaceId: tenant.workspaceId.toString(),
-        batchSize: events.length,
-      })
+      this.logger.error(
+        'Background batch funnel processing error',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          tenantId: tenant.tenantId.toString(),
+          workspaceId: tenant.workspaceId.toString(),
+          batchSize: events.length,
+        }
+      )
     }
   }
 }

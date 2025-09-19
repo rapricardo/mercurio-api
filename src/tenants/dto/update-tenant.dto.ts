@@ -1,6 +1,6 @@
-import { PartialType, ApiPropertyOptional } from '@nestjs/swagger';
-import { CreateTenantDto } from './create-tenant.dto';
-import { IsOptional, IsString, MaxLength, IsEnum } from 'class-validator';
+import { PartialType, ApiPropertyOptional } from '@nestjs/swagger'
+import { CreateTenantDto } from './create-tenant.dto'
+import { IsOptional, IsString, MaxLength, IsEnum } from 'class-validator'
 
 export class UpdateTenantDto extends PartialType(CreateTenantDto) {
   @ApiPropertyOptional({
@@ -11,7 +11,7 @@ export class UpdateTenantDto extends PartialType(CreateTenantDto) {
   @IsOptional()
   @IsString()
   @MaxLength(255, { message: 'Tenant name cannot exceed 255 characters' })
-  name?: string;
+  name?: string
 
   @ApiPropertyOptional({
     description: 'Tenant status',
@@ -22,7 +22,7 @@ export class UpdateTenantDto extends PartialType(CreateTenantDto) {
   @IsEnum(['active', 'inactive', 'suspended'], {
     message: 'Status must be one of: active, inactive, suspended',
   })
-  status?: string;
+  status?: string
 
   @ApiPropertyOptional({
     description: 'Updated tenant-specific settings and configurations',
@@ -33,7 +33,7 @@ export class UpdateTenantDto extends PartialType(CreateTenantDto) {
     },
   })
   @IsOptional()
-  settings?: Record<string, any>;
+  settings?: Record<string, any>
 
   @ApiPropertyOptional({
     description: 'Updated subscription plan identifier',
@@ -41,7 +41,7 @@ export class UpdateTenantDto extends PartialType(CreateTenantDto) {
   })
   @IsOptional()
   @IsString()
-  plan?: string;
+  plan?: string
 
   @ApiPropertyOptional({
     description: 'Updated tenant-specific limits and quotas',
@@ -52,5 +52,5 @@ export class UpdateTenantDto extends PartialType(CreateTenantDto) {
     },
   })
   @IsOptional()
-  limits?: Record<string, any>;
+  limits?: Record<string, any>
 }

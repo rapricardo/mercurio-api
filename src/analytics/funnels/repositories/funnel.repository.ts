@@ -1,50 +1,54 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../../prisma.service';
-import { CreateFunnelRequestDto, UpdateFunnelRequestDto, ListFunnelsQueryDto } from '../dto/funnel-request.dto';
-import { FunnelVersionState } from '../dto/funnel-request.dto';
-import { Prisma } from '@prisma/client';
+import { Injectable, Logger } from '@nestjs/common'
+import { PrismaService } from '../../../prisma.service'
+import {
+  CreateFunnelRequestDto,
+  UpdateFunnelRequestDto,
+  ListFunnelsQueryDto,
+} from '../dto/funnel-request.dto'
+import { FunnelVersionState } from '../dto/funnel-request.dto'
+import { Prisma } from '@prisma/client'
 
 // Type definitions for repository operations
 export interface CreateFunnelData {
-  name: string;
-  description?: string;
-  tenantId: bigint;
-  workspaceId: bigint;
-  timeWindowDays: number;
+  name: string
+  description?: string
+  tenantId: bigint
+  workspaceId: bigint
+  timeWindowDays: number
   steps: Array<{
-    order: number;
-    type: string;
-    label: string;
-    metadata?: Record<string, any>;
+    order: number
+    type: string
+    label: string
+    metadata?: Record<string, any>
     matchingRules: Array<{
-      kind: string;
-      rules: Record<string, any>;
-    }>;
-  }>;
+      kind: string
+      rules: Record<string, any>
+    }>
+  }>
 }
 
 export interface UpdateFunnelData {
-  name?: string;
-  description?: string;
-  timeWindowDays?: number;
+  name?: string
+  description?: string
+  timeWindowDays?: number
   steps?: Array<{
-    order: number;
-    type: string;
-    label: string;
-    metadata?: Record<string, any>;
+    order: number
+    type: string
+    label: string
+    metadata?: Record<string, any>
     matchingRules: Array<{
-      kind: string;
-      rules: Record<string, any>;
-    }>;
-  }>;
+      kind: string
+      rules: Record<string, any>
+    }>
+  }>
 }
 
 export interface ListFunnelsOptions {
-  page: number;
-  limit: number;
-  search?: string;
-  state?: FunnelVersionState;
-  includeArchived: boolean;
+  page: number
+  limit: number
+  search?: string
+  state?: FunnelVersionState
+  includeArchived: boolean
 }
 
 // Full funnel data with relations
@@ -54,28 +58,28 @@ export type FunnelWithRelations = Prisma.FunnelGetPayload<{
       include: {
         steps: {
           include: {
-            matches: true;
-          };
+            matches: true
+          }
           orderBy: {
-            orderIndex: 'asc';
-          };
-        };
-      };
+            orderIndex: 'asc'
+          }
+        }
+      }
       orderBy: {
-        version: 'desc';
-      };
-    };
+        version: 'desc'
+      }
+    }
     publications: {
       orderBy: {
-        publishedAt: 'desc';
-      };
-    };
-  };
-}>;
+        publishedAt: 'desc'
+      }
+    }
+  }
+}>
 
 @Injectable()
 export class FunnelRepository {
-  private readonly logger = new Logger(FunnelRepository.name);
+  private readonly logger = new Logger(FunnelRepository.name)
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -88,7 +92,7 @@ export class FunnelRepository {
       tenantId: data.tenantId.toString(),
       workspaceId: data.workspaceId.toString(),
       stepCount: data.steps.length,
-    });
+    })
 
     return await this.prisma.$transaction(async (tx) => {
       // 1. Create the funnel
@@ -99,7 +103,7 @@ export class FunnelRepository {
           tenantId: data.tenantId,
           workspaceId: data.workspaceId,
         },
-      });
+      })
 
       // 2. Create the first version
       const version = await tx.funnelVersion.create({
@@ -108,7 +112,7 @@ export class FunnelRepository {
           version: 1,
           state: FunnelVersionState.DRAFT,
         },
-      });
+      })
 
       // 3. Create steps for this version
       for (const stepData of data.steps) {
@@ -120,7 +124,7 @@ export class FunnelRepository {
             label: stepData.label,
             metadata: stepData.metadata,
           },
-        });
+        })
 
         // 4. Create matching rules for each step
         for (const ruleData of stepData.matchingRules) {
@@ -130,12 +134,12 @@ export class FunnelRepository {
               kind: ruleData.kind,
               rules: ruleData.rules,
             },
-          });
+          })
         }
       }
 
       // 5. Return the complete funnel with all relations
-      return await tx.funnel.findUnique({
+      return (await tx.funnel.findUnique({
         where: { id: funnel.id },
         include: {
           versions: {
@@ -159,8 +163,8 @@ export class FunnelRepository {
             },
           },
         },
-      }) as FunnelWithRelations;
-    });
+      })) as FunnelWithRelations
+    })
   }
 
   /**
@@ -169,7 +173,7 @@ export class FunnelRepository {
   async getFunnelById(
     id: bigint,
     tenantId: bigint,
-    workspaceId: bigint,
+    workspaceId: bigint
   ): Promise<FunnelWithRelations | null> {
     return await this.prisma.funnel.findFirst({
       where: {
@@ -200,7 +204,7 @@ export class FunnelRepository {
           },
         },
       },
-    });
+    })
   }
 
   /**
@@ -209,23 +213,23 @@ export class FunnelRepository {
   async listFunnels(
     tenantId: bigint,
     workspaceId: bigint,
-    options: ListFunnelsOptions,
+    options: ListFunnelsOptions
   ): Promise<{
-    funnels: FunnelWithRelations[];
-    totalCount: number;
+    funnels: FunnelWithRelations[]
+    totalCount: number
   }> {
-    const { page, limit, search, state, includeArchived } = options;
-    const skip = (page - 1) * limit;
+    const { page, limit, search, state, includeArchived } = options
+    const skip = (page - 1) * limit
 
     // Build where conditions
     const whereConditions: Prisma.FunnelWhereInput = {
       tenantId,
       workspaceId,
-    };
+    }
 
     // Include archived filter
     if (!includeArchived) {
-      whereConditions.archivedAt = null;
+      whereConditions.archivedAt = null
     }
 
     // Search filter
@@ -233,7 +237,7 @@ export class FunnelRepository {
       whereConditions.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
-      ];
+      ]
     }
 
     // State filter (requires joining with versions)
@@ -242,7 +246,7 @@ export class FunnelRepository {
         some: {
           state,
         },
-      };
+      }
     }
 
     // Execute count and data queries in parallel
@@ -278,7 +282,7 @@ export class FunnelRepository {
           },
         },
       }),
-    ]);
+    ])
 
     this.logger.log('Listed funnels', {
       tenantId: tenantId.toString(),
@@ -288,9 +292,9 @@ export class FunnelRepository {
       page,
       limit,
       filters: { search, state, includeArchived },
-    });
+    })
 
-    return { funnels, totalCount: Number(totalCount) };
+    return { funnels, totalCount: Number(totalCount) }
   }
 
   /**
@@ -300,13 +304,13 @@ export class FunnelRepository {
     id: bigint,
     tenantId: bigint,
     workspaceId: bigint,
-    data: UpdateFunnelData,
+    data: UpdateFunnelData
   ): Promise<FunnelWithRelations | null> {
     this.logger.log('Updating funnel', {
       funnelId: id.toString(),
       tenantId: tenantId.toString(),
       workspaceId: workspaceId.toString(),
-    });
+    })
 
     return await this.prisma.$transaction(async (tx) => {
       // 1. Verify funnel exists and belongs to tenant/workspace
@@ -325,10 +329,10 @@ export class FunnelRepository {
             take: 1,
           },
         },
-      });
+      })
 
       if (!existingFunnel) {
-        return null;
+        return null
       }
 
       // 2. Update basic funnel properties if provided
@@ -338,12 +342,12 @@ export class FunnelRepository {
           ...(data.name && { name: data.name }),
           ...(data.description !== undefined && { description: data.description }),
         },
-      });
+      })
 
       // 3. If steps are provided, create a new version
       if (data.steps) {
-        const currentVersion = existingFunnel.versions[0]?.version || 0;
-        const newVersionNumber = currentVersion + 1;
+        const currentVersion = existingFunnel.versions[0]?.version || 0
+        const newVersionNumber = currentVersion + 1
 
         const newVersion = await tx.funnelVersion.create({
           data: {
@@ -351,7 +355,7 @@ export class FunnelRepository {
             version: newVersionNumber,
             state: FunnelVersionState.DRAFT,
           },
-        });
+        })
 
         // 4. Create steps for the new version
         for (const stepData of data.steps) {
@@ -363,7 +367,7 @@ export class FunnelRepository {
               label: stepData.label,
               metadata: stepData.metadata,
             },
-          });
+          })
 
           // 5. Create matching rules for each step
           for (const ruleData of stepData.matchingRules) {
@@ -373,13 +377,13 @@ export class FunnelRepository {
                 kind: ruleData.kind,
                 rules: ruleData.rules,
               },
-            });
+            })
           }
         }
       }
 
       // 6. Return updated funnel with relations
-      return await tx.funnel.findUnique({
+      return (await tx.funnel.findUnique({
         where: { id },
         include: {
           versions: {
@@ -403,8 +407,8 @@ export class FunnelRepository {
             },
           },
         },
-      }) as FunnelWithRelations;
-    });
+      })) as FunnelWithRelations
+    })
   }
 
   /**
@@ -413,13 +417,13 @@ export class FunnelRepository {
   async archiveFunnel(
     id: bigint,
     tenantId: bigint,
-    workspaceId: bigint,
+    workspaceId: bigint
   ): Promise<FunnelWithRelations | null> {
     this.logger.log('Archiving funnel', {
       funnelId: id.toString(),
       tenantId: tenantId.toString(),
       workspaceId: workspaceId.toString(),
-    });
+    })
 
     const archivedFunnel = await this.prisma.funnel.updateMany({
       where: {
@@ -431,13 +435,13 @@ export class FunnelRepository {
       data: {
         archivedAt: new Date(),
       },
-    });
+    })
 
     if (archivedFunnel.count === 0) {
-      return null;
+      return null
     }
 
-    return await this.getFunnelById(id, tenantId, workspaceId);
+    return await this.getFunnelById(id, tenantId, workspaceId)
   }
 
   /**
@@ -449,7 +453,7 @@ export class FunnelRepository {
     tenantId: bigint,
     workspaceId: bigint,
     windowDays: number = 7,
-    notes?: string,
+    notes?: string
   ): Promise<{ publication: any; funnel: FunnelWithRelations } | null> {
     this.logger.log('Publishing funnel version', {
       funnelId: funnelId.toString(),
@@ -457,7 +461,7 @@ export class FunnelRepository {
       tenantId: tenantId.toString(),
       workspaceId: workspaceId.toString(),
       windowDays,
-    });
+    })
 
     return await this.prisma.$transaction(async (tx) => {
       // 1. Verify funnel and version exist
@@ -471,17 +475,17 @@ export class FunnelRepository {
           },
           version,
         },
-      });
+      })
 
       if (!funnelVersion) {
-        return null;
+        return null
       }
 
       // 2. Update version state to published
       await tx.funnelVersion.update({
         where: { id: funnelVersion.id },
         data: { state: FunnelVersionState.PUBLISHED },
-      });
+      })
 
       // 3. Create publication record
       const publication = await tx.funnelPublication.create({
@@ -491,7 +495,7 @@ export class FunnelRepository {
           windowDays,
           notes,
         },
-      });
+      })
 
       // 4. Get updated funnel with relations
       const funnel = (await tx.funnel.findUnique({
@@ -518,10 +522,10 @@ export class FunnelRepository {
             },
           },
         },
-      })) as FunnelWithRelations;
+      })) as FunnelWithRelations
 
-      return { publication, funnel };
-    });
+      return { publication, funnel }
+    })
   }
 
   /**
@@ -551,13 +555,13 @@ export class FunnelRepository {
       this.prisma.funnel.count({
         where: { tenantId, workspaceId, archivedAt: { not: null } },
       }),
-    ]);
+    ])
 
     return {
       totalFunnels: Number(totalFunnels),
       draftFunnels: Number(draftFunnels),
       publishedFunnels: Number(publishedFunnels),
       archivedFunnels: Number(archivedFunnels),
-    };
+    }
   }
 }

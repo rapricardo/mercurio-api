@@ -16,16 +16,16 @@ export class EventProcessorService {
     private readonly prisma: PrismaService,
     private readonly logger: MercurioLogger,
     private readonly metrics: MetricsService,
-    private readonly encryption: EncryptionService,
+    private readonly encryption: EncryptionService
   ) {}
 
   async processTrackEvent(
     event: TrackEventDto,
     context: TenantContext,
-    enrichmentData?: any,
+    enrichmentData?: any
   ): Promise<ProcessingResult> {
     const startTime = Date.now()
-    
+
     try {
       // Check for deduplication if event_id provided
       if (event.event_id) {
@@ -34,35 +34,40 @@ export class EventProcessorService {
             tenantId: context.tenantId,
             eventId: event.event_id,
           },
-        });
-        
+        })
+
         if (existingEvent) {
           // Record duplicate metric
-          this.metrics.incrementCounter('events.duplicates');
-          
+          this.metrics.incrementCounter('events.duplicates')
+
           // Return success for duplicate (idempotent response)
-          this.logger.logDeduplication(event.event_id, {
-            tenantId: context.tenantId.toString(),
-            workspaceId: context.workspaceId.toString(),
-          }, {
-            isDuplicate: true,
-            existingEventId: existingEvent.id.toString()
-          });
-          
+          this.logger.logDeduplication(
+            event.event_id,
+            {
+              tenantId: context.tenantId.toString(),
+              workspaceId: context.workspaceId.toString(),
+            },
+            {
+              isDuplicate: true,
+              existingEventId: existingEvent.id.toString(),
+            }
+          )
+
           return {
             success: true,
             eventId: existingEvent.id.toString(),
             isDuplicate: true,
-          };
+          }
         }
       }
 
       // Ensure visitor exists
       const visitor = await this.ensureVisitor(event.anonymous_id, context, enrichmentData)
-      
+
       // Handle session management
-      const sessionId = event.session_id || await this.ensureSession(event.anonymous_id, context, enrichmentData)
-      
+      const sessionId =
+        event.session_id || (await this.ensureSession(event.anonymous_id, context, enrichmentData))
+
       // Get linked lead if exists
       const leadId = await this.getLinkedLead(event.anonymous_id, context)
 
@@ -78,12 +83,14 @@ export class EventProcessorService {
           anonymousId: event.anonymous_id,
           leadId,
           sessionId,
-          page: event.page ? {
-            url: event.page.url,
-            title: event.page.title,
-            referrer: event.page.referrer,
-            path: event.page.path || new URL(event.page.url).pathname,
-          } : undefined,
+          page: event.page
+            ? {
+                url: event.page.url,
+                title: event.page.title,
+                referrer: event.page.referrer,
+                path: event.page.path || new URL(event.page.url).pathname,
+              }
+            : undefined,
           utm: event.utm ? JSON.parse(JSON.stringify(event.utm)) : undefined,
           device: event.device || enrichmentData?.device || null,
           geo: event.geo || enrichmentData?.geo || null,
@@ -95,19 +102,23 @@ export class EventProcessorService {
       const processingTime = Date.now() - startTime
 
       // Record metrics
-      this.metrics.incrementCounter('events.tracked');
-      this.metrics.recordLatency('events.processing_latency', processingTime);
-      
-      this.logger.logEventIngestion(event.event_name, {
-        tenantId: context.tenantId.toString(),
-        workspaceId: context.workspaceId.toString(),
-        eventId: eventRecord.id.toString(),
-      }, {
-        eventId: event.event_id,
-        payloadSize: JSON.stringify(event).length,
-        processingTimeMs: processingTime,
-        isDuplicate: false
-      })
+      this.metrics.incrementCounter('events.tracked')
+      this.metrics.recordLatency('events.processing_latency', processingTime)
+
+      this.logger.logEventIngestion(
+        event.event_name,
+        {
+          tenantId: context.tenantId.toString(),
+          workspaceId: context.workspaceId.toString(),
+          eventId: eventRecord.id.toString(),
+        },
+        {
+          eventId: event.event_id,
+          payloadSize: JSON.stringify(event).length,
+          processingTimeMs: processingTime,
+          isDuplicate: false,
+        }
+      )
 
       return {
         success: true,
@@ -117,7 +128,8 @@ export class EventProcessorService {
       }
     } catch (error) {
       const processingTime = Date.now() - startTime
-      this.logger.error('Failed to process track event', 
+      this.logger.error(
+        'Failed to process track event',
         error instanceof Error ? error : new Error('Unknown error'),
         {
           tenantId: context.tenantId.toString(),
@@ -133,11 +145,13 @@ export class EventProcessorService {
 
       return {
         success: false,
-        errors: [{
-          field: 'event',
-          message: 'Failed to process event',
-          value: error instanceof Error ? error.message : 'Unknown error',
-        }],
+        errors: [
+          {
+            field: 'event',
+            message: 'Failed to process event',
+            value: error instanceof Error ? error.message : 'Unknown error',
+          },
+        ],
       }
     }
   }
@@ -145,7 +159,7 @@ export class EventProcessorService {
   async processBatchEvents(
     events: TrackEventDto[],
     context: TenantContext,
-    enrichmentData?: any[],
+    enrichmentData?: any[]
   ): Promise<BatchProcessingResult> {
     const results: ProcessingResult[] = []
     let successCount = 0
@@ -156,7 +170,7 @@ export class EventProcessorService {
     for (let i = 0; i < events.length; i += batchSize) {
       const batch = events.slice(i, i + batchSize)
       const batchEnrichment = enrichmentData?.slice(i, i + batchSize)
-      
+
       const batchPromises = batch.map((event, index) =>
         this.processTrackEvent(event, context, batchEnrichment?.[index])
       )
@@ -174,17 +188,21 @@ export class EventProcessorService {
     }
 
     // Record batch metrics
-    this.metrics.incrementCounter('events.batched', events.length);
-    
-    this.logger.log('Batch processing completed', {
-      tenantId: context.tenantId.toString(),
-      workspaceId: context.workspaceId.toString(),
-    }, {
-      category: 'batch_processing',
-      total: events.length,
-      successful: successCount,
-      failed: errorCount,
-    })
+    this.metrics.incrementCounter('events.batched', events.length)
+
+    this.logger.log(
+      'Batch processing completed',
+      {
+        tenantId: context.tenantId.toString(),
+        workspaceId: context.workspaceId.toString(),
+      },
+      {
+        category: 'batch_processing',
+        total: events.length,
+        successful: successCount,
+        failed: errorCount,
+      }
+    )
 
     return {
       totalProcessed: events.length,
@@ -197,10 +215,10 @@ export class EventProcessorService {
   async processIdentifyEvent(
     identify: IdentifyEventDto,
     context: TenantContext,
-    enrichmentData?: any,
+    enrichmentData?: any
   ): Promise<ProcessingResult> {
     const startTime = Date.now()
-    
+
     try {
       // Ensure visitor exists
       await this.ensureVisitor(identify.anonymous_id, context, enrichmentData)
@@ -217,20 +235,24 @@ export class EventProcessorService {
       }
 
       const processingTime = Date.now() - startTime
-      
+
       // Record identify metrics
-      this.metrics.incrementCounter('events.identified');
-      this.metrics.recordLatency('events.processing_latency', processingTime);
-      
-      this.logger.log('Identity event processed successfully', {
-        tenantId: context.tenantId.toString(),
-        workspaceId: context.workspaceId.toString(),
-      }, {
-        category: 'identity_processing',
-        anonymousId: identify.anonymous_id,
-        leadId: leadId?.toString(),
-        processingTimeMs: processingTime,
-      })
+      this.metrics.incrementCounter('events.identified')
+      this.metrics.recordLatency('events.processing_latency', processingTime)
+
+      this.logger.log(
+        'Identity event processed successfully',
+        {
+          tenantId: context.tenantId.toString(),
+          workspaceId: context.workspaceId.toString(),
+        },
+        {
+          category: 'identity_processing',
+          anonymousId: identify.anonymous_id,
+          leadId: leadId?.toString(),
+          processingTimeMs: processingTime,
+        }
+      )
 
       return {
         success: true,
@@ -238,7 +260,8 @@ export class EventProcessorService {
       }
     } catch (error) {
       const processingTime = Date.now() - startTime
-      this.logger.error('Failed to process identify event',
+      this.logger.error(
+        'Failed to process identify event',
         error instanceof Error ? error : new Error('Unknown error'),
         {
           tenantId: context.tenantId.toString(),
@@ -253,20 +276,18 @@ export class EventProcessorService {
 
       return {
         success: false,
-        errors: [{
-          field: 'identify',
-          message: 'Failed to process identity event',
-          value: error instanceof Error ? error.message : 'Unknown error',
-        }],
+        errors: [
+          {
+            field: 'identify',
+            message: 'Failed to process identity event',
+            value: error instanceof Error ? error.message : 'Unknown error',
+          },
+        ],
       }
     }
   }
 
-  private async ensureVisitor(
-    anonymousId: string,
-    context: TenantContext,
-    enrichmentData?: any,
-  ) {
+  private async ensureVisitor(anonymousId: string, context: TenantContext, enrichmentData?: any) {
     const existingVisitor = await this.prisma.visitor.findUnique({
       where: { anonymousId },
     })
@@ -303,11 +324,11 @@ export class EventProcessorService {
   private async ensureSession(
     anonymousId: string,
     context: TenantContext,
-    enrichmentData?: any,
+    enrichmentData?: any
   ): Promise<string> {
     // Find active session (within timeout period)
     const timeoutThreshold = new Date(Date.now() - this.SESSION_TIMEOUT_MINUTES * 60 * 1000)
-    
+
     const activeSession = await this.prisma.session.findFirst({
       where: {
         anonymousId,
@@ -329,7 +350,7 @@ export class EventProcessorService {
 
     // Create new session
     const sessionId = `s_${Date.now()}_${crypto.randomInt(10000, 99999)}`
-    
+
     await this.prisma.session.create({
       data: {
         sessionId,
@@ -344,10 +365,7 @@ export class EventProcessorService {
     return sessionId
   }
 
-  private async getLinkedLead(
-    anonymousId: string,
-    context: TenantContext,
-  ): Promise<bigint | null> {
+  private async getLinkedLead(anonymousId: string, context: TenantContext): Promise<bigint | null> {
     const identityLink = await this.prisma.identityLink.findFirst({
       where: {
         anonymousId,
@@ -362,10 +380,7 @@ export class EventProcessorService {
     return identityLink?.leadId || null
   }
 
-  private async findOrCreateLead(
-    identify: IdentifyEventDto,
-    context: TenantContext,
-  ) {
+  private async findOrCreateLead(identify: IdentifyEventDto, context: TenantContext) {
     if (!identify.user_id && !identify.traits) {
       throw new Error('Either user_id or traits must be provided for identification')
     }
@@ -380,60 +395,78 @@ export class EventProcessorService {
     // Process email if provided
     if (identify.traits?.email) {
       try {
-        const encryptedEmail = await this.encryption.encryptEmail(identify.traits.email);
-        emailEnc = encryptedEmail.encrypted;
-        emailFingerprint = encryptedEmail.fingerprint;
-        emailKeyVersion = encryptedEmail.keyVersion;
-        
-        this.logger.debug('Email encrypted successfully', {
-          tenantId: context.tenantId.toString(),
-          workspaceId: context.workspaceId.toString(),
-        }, {
-          category: 'encryption',
-          operation: 'encrypt',
-          type: 'email',
-          keyVersion: emailKeyVersion,
-        });
+        const encryptedEmail = await this.encryption.encryptEmail(identify.traits.email)
+        emailEnc = encryptedEmail.encrypted
+        emailFingerprint = encryptedEmail.fingerprint
+        emailKeyVersion = encryptedEmail.keyVersion
+
+        this.logger.debug(
+          'Email encrypted successfully',
+          {
+            tenantId: context.tenantId.toString(),
+            workspaceId: context.workspaceId.toString(),
+          },
+          {
+            category: 'encryption',
+            operation: 'encrypt',
+            type: 'email',
+            keyVersion: emailKeyVersion,
+          }
+        )
       } catch (error) {
-        this.logger.error('Failed to encrypt email', error instanceof Error ? error : new Error('Unknown error'), {
-          tenantId: context.tenantId.toString(),
-          workspaceId: context.workspaceId.toString(),
-        }, {
-          category: 'encryption',
-          operation: 'encrypt',
-          type: 'email',
-        });
-        throw new Error('Failed to process email data');
+        this.logger.error(
+          'Failed to encrypt email',
+          error instanceof Error ? error : new Error('Unknown error'),
+          {
+            tenantId: context.tenantId.toString(),
+            workspaceId: context.workspaceId.toString(),
+          },
+          {
+            category: 'encryption',
+            operation: 'encrypt',
+            type: 'email',
+          }
+        )
+        throw new Error('Failed to process email data')
       }
     }
 
-    // Process phone if provided  
+    // Process phone if provided
     if (identify.traits?.phone) {
       try {
-        const encryptedPhone = await this.encryption.encryptPhone(identify.traits.phone);
-        phoneEnc = encryptedPhone.encrypted;
-        phoneFingerprint = encryptedPhone.fingerprint;
-        phoneKeyVersion = encryptedPhone.keyVersion;
-        
-        this.logger.debug('Phone encrypted successfully', {
-          tenantId: context.tenantId.toString(),
-          workspaceId: context.workspaceId.toString(),
-        }, {
-          category: 'encryption',
-          operation: 'encrypt',
-          type: 'phone',
-          keyVersion: phoneKeyVersion,
-        });
+        const encryptedPhone = await this.encryption.encryptPhone(identify.traits.phone)
+        phoneEnc = encryptedPhone.encrypted
+        phoneFingerprint = encryptedPhone.fingerprint
+        phoneKeyVersion = encryptedPhone.keyVersion
+
+        this.logger.debug(
+          'Phone encrypted successfully',
+          {
+            tenantId: context.tenantId.toString(),
+            workspaceId: context.workspaceId.toString(),
+          },
+          {
+            category: 'encryption',
+            operation: 'encrypt',
+            type: 'phone',
+            keyVersion: phoneKeyVersion,
+          }
+        )
       } catch (error) {
-        this.logger.error('Failed to encrypt phone', error instanceof Error ? error : new Error('Unknown error'), {
-          tenantId: context.tenantId.toString(),
-          workspaceId: context.workspaceId.toString(),
-        }, {
-          category: 'encryption',
-          operation: 'encrypt',
-          type: 'phone',
-        });
-        throw new Error('Failed to process phone data');
+        this.logger.error(
+          'Failed to encrypt phone',
+          error instanceof Error ? error : new Error('Unknown error'),
+          {
+            tenantId: context.tenantId.toString(),
+            workspaceId: context.workspaceId.toString(),
+          },
+          {
+            category: 'encryption',
+            operation: 'encrypt',
+            type: 'phone',
+          }
+        )
+        throw new Error('Failed to process phone data')
       }
     }
 
@@ -445,25 +478,25 @@ export class EventProcessorService {
           workspaceId: context.workspaceId,
           emailFingerprint,
         },
-      });
+      })
 
       if (existingLead) {
         // Update existing lead with new traits (including phone if provided)
         const updateData: any = {
           updatedAt: new Date(),
-        };
+        }
 
         // Update phone data if provided and different
         if (phoneEnc && phoneFingerprint && phoneKeyVersion) {
-          updateData.phoneEnc = phoneEnc;
-          updateData.phoneFingerprint = phoneFingerprint;
-          updateData.phoneKeyVersion = phoneKeyVersion;
+          updateData.phoneEnc = phoneEnc
+          updateData.phoneFingerprint = phoneFingerprint
+          updateData.phoneKeyVersion = phoneKeyVersion
         }
 
         return this.prisma.lead.update({
           where: { id: existingLead.id },
           data: updateData,
-        });
+        })
       }
     }
 
@@ -475,7 +508,7 @@ export class EventProcessorService {
           workspaceId: context.workspaceId,
           phoneFingerprint,
         },
-      });
+      })
 
       if (existingLead) {
         // Update existing lead with new traits
@@ -484,7 +517,7 @@ export class EventProcessorService {
           data: {
             updatedAt: new Date(),
           },
-        });
+        })
       }
     }
 
@@ -502,13 +535,13 @@ export class EventProcessorService {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
-    });
+    })
   }
 
   private async createOrUpdateIdentityLink(
     anonymousId: string,
     leadId: bigint,
-    context: TenantContext,
+    context: TenantContext
   ) {
     const existingLink = await this.prisma.identityLink.findUnique({
       where: {

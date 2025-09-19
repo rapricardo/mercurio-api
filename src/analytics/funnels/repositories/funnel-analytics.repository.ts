@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../prisma.service';
-import { MercurioLogger } from '../../../common/services/logger.service';
-import { ConversionTimeSeriesPoint } from '../dto/analytics-response.dto';
+import { Injectable } from '@nestjs/common'
+import { PrismaService } from '../../../prisma.service'
+import { MercurioLogger } from '../../../common/services/logger.service'
+import { ConversionTimeSeriesPoint } from '../dto/analytics-response.dto'
 
 /**
  * Repository for advanced funnel analytics queries
@@ -11,7 +11,7 @@ import { ConversionTimeSeriesPoint } from '../dto/analytics-response.dto';
 export class FunnelAnalyticsRepository {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly logger: MercurioLogger,
+    private readonly logger: MercurioLogger
   ) {}
 
   /**
@@ -23,7 +23,7 @@ export class FunnelAnalyticsRepository {
     funnelId: bigint,
     stepOrder: number,
     startDate: string,
-    endDate: string,
+    endDate: string
   ): Promise<number> {
     const query = `
       SELECT COUNT(DISTINCT fus.anonymous_id) as completions
@@ -36,13 +36,19 @@ export class FunnelAnalyticsRepository {
         AND fus.first_seen_at >= $5::timestamp
         AND fus.first_seen_at <= $6::timestamp
         AND f.archived_at IS NULL
-    `;
+    `
 
-    const result = await this.prisma.$queryRawUnsafe(query, 
-      tenantId, workspaceId, funnelId, stepOrder, startDate, endDate
-    ) as Array<{ completions: bigint }>;
+    const result = (await this.prisma.$queryRawUnsafe(
+      query,
+      tenantId,
+      workspaceId,
+      funnelId,
+      stepOrder,
+      startDate,
+      endDate
+    )) as Array<{ completions: bigint }>
 
-    return Number(result[0]?.completions || 0);
+    return Number(result[0]?.completions || 0)
   }
 
   /**
@@ -54,26 +60,30 @@ export class FunnelAnalyticsRepository {
     funnelId: bigint,
     segmentType: string,
     startDate: string,
-    endDate: string,
-  ): Promise<Array<{
-    segment_value: string;
-    total_entries: number;
-    total_conversions: number;
-  }>> {
-    let segmentColumn: string;
-    let joinClause = '';
+    endDate: string
+  ): Promise<
+    Array<{
+      segment_value: string
+      total_entries: number
+      total_conversions: number
+    }>
+  > {
+    let segmentColumn: string
+    let joinClause = ''
 
     switch (segmentType) {
       case 'device_type':
-        segmentColumn = 'e.device->\'type\' as segment_value';
-        joinClause = 'JOIN event e ON e.anonymous_id = fus.anonymous_id AND e.tenant_id = fus.tenant_id';
-        break;
+        segmentColumn = "e.device->'type' as segment_value"
+        joinClause =
+          'JOIN event e ON e.anonymous_id = fus.anonymous_id AND e.tenant_id = fus.tenant_id'
+        break
       case 'utm_source':
-        segmentColumn = 'e.utm->\'source\' as segment_value';
-        joinClause = 'JOIN event e ON e.anonymous_id = fus.anonymous_id AND e.tenant_id = fus.tenant_id';
-        break;
+        segmentColumn = "e.utm->'source' as segment_value"
+        joinClause =
+          'JOIN event e ON e.anonymous_id = fus.anonymous_id AND e.tenant_id = fus.tenant_id'
+        break
       default:
-        throw new Error(`Unsupported segment type: ${segmentType}`);
+        throw new Error(`Unsupported segment type: ${segmentType}`)
     }
 
     const query = `
@@ -119,21 +129,26 @@ export class FunnelAnalyticsRepository {
       FULL OUTER JOIN segment_conversions sc ON se.segment_value = sc.segment_value
       WHERE COALESCE(se.entries, sc.conversions) > 0
       ORDER BY total_entries DESC
-    `;
+    `
 
-    const result = await this.prisma.$queryRawUnsafe(query, 
-      tenantId, workspaceId, funnelId, startDate, endDate
-    ) as Array<{
-      segment_value: string;
-      total_entries: bigint;
-      total_conversions: bigint;
-    }>;
+    const result = (await this.prisma.$queryRawUnsafe(
+      query,
+      tenantId,
+      workspaceId,
+      funnelId,
+      startDate,
+      endDate
+    )) as Array<{
+      segment_value: string
+      total_entries: bigint
+      total_conversions: bigint
+    }>
 
-    return result.map(row => ({
+    return result.map((row) => ({
       segment_value: row.segment_value,
       total_entries: Number(row.total_entries),
       total_conversions: Number(row.total_conversions),
-    }));
+    }))
   }
 
   /**
@@ -145,24 +160,24 @@ export class FunnelAnalyticsRepository {
     funnelId: bigint,
     startDate: string,
     endDate: string,
-    granularity: 'hourly' | 'daily' | 'weekly',
+    granularity: 'hourly' | 'daily' | 'weekly'
   ): Promise<ConversionTimeSeriesPoint[]> {
-    let dateFormat: string;
-    let periodType: 'hour' | 'day' | 'week';
+    let dateFormat: string
+    let periodType: 'hour' | 'day' | 'week'
 
     switch (granularity) {
       case 'hourly':
-        dateFormat = 'YYYY-MM-DD HH24:00:00';
-        periodType = 'hour';
-        break;
+        dateFormat = 'YYYY-MM-DD HH24:00:00'
+        periodType = 'hour'
+        break
       case 'daily':
-        dateFormat = 'YYYY-MM-DD';
-        periodType = 'day';
-        break;
+        dateFormat = 'YYYY-MM-DD'
+        periodType = 'day'
+        break
       case 'weekly':
-        dateFormat = 'YYYY-"W"WW';
-        periodType = 'week';
-        break;
+        dateFormat = 'YYYY-"W"WW'
+        periodType = 'week'
+        break
     }
 
     const query = `
@@ -218,19 +233,24 @@ export class FunnelAnalyticsRepository {
       LEFT JOIN period_entries pe ON to_char(ds.period_date, '${dateFormat}') = pe.period
       LEFT JOIN period_conversions pc ON to_char(ds.period_date, '${dateFormat}') = pc.period
       ORDER BY ds.period_date
-    `;
+    `
 
-    const result = await this.prisma.$queryRawUnsafe(query, 
-      tenantId, workspaceId, funnelId, startDate, endDate
-    ) as Array<{
-      date: string;
-      entries: bigint;
-      conversions: bigint;
-      conversion_rate: number;
-    }>;
+    const result = (await this.prisma.$queryRawUnsafe(
+      query,
+      tenantId,
+      workspaceId,
+      funnelId,
+      startDate,
+      endDate
+    )) as Array<{
+      date: string
+      entries: bigint
+      conversions: bigint
+      conversion_rate: number
+    }>
 
     // Calculate moving averages and trends
-    const points = result.map(row => ({
+    const points = result.map((row) => ({
       date: row.date,
       period_type: periodType,
       entries: Number(row.entries),
@@ -238,32 +258,32 @@ export class FunnelAnalyticsRepository {
       conversion_rate: Number(row.conversion_rate),
       trend_direction: 'stable' as 'up' | 'down' | 'stable',
       moving_average: Number(row.conversion_rate),
-    }));
+    }))
 
     // Calculate 7-period moving average and trend direction
     for (let i = 0; i < points.length; i++) {
-      const windowStart = Math.max(0, i - 6);
-      const window = points.slice(windowStart, i + 1);
-      const movingAvg = window.reduce((sum, p) => sum + p.conversion_rate, 0) / window.length;
-      points[i].moving_average = Math.round(movingAvg * 100) / 100;
+      const windowStart = Math.max(0, i - 6)
+      const window = points.slice(windowStart, i + 1)
+      const movingAvg = window.reduce((sum, p) => sum + p.conversion_rate, 0) / window.length
+      points[i].moving_average = Math.round(movingAvg * 100) / 100
 
       // Determine trend direction
       if (i > 0) {
-        const current = points[i].conversion_rate;
-        const previous = points[i - 1].moving_average;
-        const threshold = 0.1; // 0.1 percentage points
+        const current = points[i].conversion_rate
+        const previous = points[i - 1].moving_average
+        const threshold = 0.1 // 0.1 percentage points
 
         if (current > previous + threshold) {
-          points[i].trend_direction = 'up';
+          points[i].trend_direction = 'up'
         } else if (current < previous - threshold) {
-          points[i].trend_direction = 'down';
+          points[i].trend_direction = 'down'
         } else {
-          points[i].trend_direction = 'stable';
+          points[i].trend_direction = 'stable'
         }
       }
     }
 
-    return points;
+    return points
   }
 
   /**
@@ -275,7 +295,7 @@ export class FunnelAnalyticsRepository {
     funnelId: bigint,
     stepOrder: number,
     startDate: string,
-    endDate: string,
+    endDate: string
   ): Promise<number> {
     const query = `
       SELECT AVG(
@@ -289,13 +309,19 @@ export class FunnelAnalyticsRepository {
         AND fus.first_seen_at >= $5::timestamp
         AND fus.first_seen_at <= $6::timestamp
         AND fus.last_step_at IS NOT NULL
-    `;
+    `
 
-    const result = await this.prisma.$queryRawUnsafe(query, 
-      tenantId, workspaceId, funnelId, stepOrder, startDate, endDate
-    ) as Array<{ avg_minutes: number }>;
+    const result = (await this.prisma.$queryRawUnsafe(
+      query,
+      tenantId,
+      workspaceId,
+      funnelId,
+      stepOrder,
+      startDate,
+      endDate
+    )) as Array<{ avg_minutes: number }>
 
-    return Math.round((result[0]?.avg_minutes || 0) * 100) / 100;
+    return Math.round((result[0]?.avg_minutes || 0) * 100) / 100
   }
 
   /**
@@ -306,7 +332,7 @@ export class FunnelAnalyticsRepository {
     workspaceId: bigint,
     funnelId: bigint,
     startDate: string,
-    endDate: string,
+    endDate: string
   ): Promise<number> {
     const query = `
       WITH funnel_steps AS (
@@ -326,13 +352,18 @@ export class FunnelAnalyticsRepository {
         AND fus.completed_at IS NOT NULL
         AND fus.first_seen_at >= $4::timestamp
         AND fus.first_seen_at <= $5::timestamp
-    `;
+    `
 
-    const result = await this.prisma.$queryRawUnsafe(query, 
-      tenantId, workspaceId, funnelId, startDate, endDate
-    ) as Array<{ avg_minutes: number }>;
+    const result = (await this.prisma.$queryRawUnsafe(
+      query,
+      tenantId,
+      workspaceId,
+      funnelId,
+      startDate,
+      endDate
+    )) as Array<{ avg_minutes: number }>
 
-    return Math.round((result[0]?.avg_minutes || 0) * 100) / 100;
+    return Math.round((result[0]?.avg_minutes || 0) * 100) / 100
   }
 
   /**
@@ -343,7 +374,7 @@ export class FunnelAnalyticsRepository {
     workspaceId: bigint,
     funnelId: bigint,
     startDate: string,
-    endDate: string,
+    endDate: string
   ): Promise<number> {
     const query = `
       WITH funnel_steps AS (
@@ -371,13 +402,18 @@ export class FunnelAnalyticsRepository {
           ELSE 0 
         END as velocity
       FROM conversion_data
-    `;
+    `
 
-    const result = await this.prisma.$queryRawUnsafe(query, 
-      tenantId, workspaceId, funnelId, startDate, endDate
-    ) as Array<{ velocity: number }>;
+    const result = (await this.prisma.$queryRawUnsafe(
+      query,
+      tenantId,
+      workspaceId,
+      funnelId,
+      startDate,
+      endDate
+    )) as Array<{ velocity: number }>
 
-    return Math.round((result[0]?.velocity || 0) * 100) / 100;
+    return Math.round((result[0]?.velocity || 0) * 100) / 100
   }
 
   /**
@@ -388,7 +424,7 @@ export class FunnelAnalyticsRepository {
     workspaceId: bigint,
     funnelId: bigint,
     startDate: string,
-    endDate: string,
+    endDate: string
   ): Promise<number> {
     const query = `
       WITH funnel_steps AS (
@@ -414,13 +450,18 @@ export class FunnelAnalyticsRepository {
           ELSE 0 
         END as avg_conversion_rate
       FROM conversion_data
-    `;
+    `
 
-    const result = await this.prisma.$queryRawUnsafe(query, 
-      tenantId, workspaceId, funnelId, startDate, endDate
-    ) as Array<{ avg_conversion_rate: number }>;
+    const result = (await this.prisma.$queryRawUnsafe(
+      query,
+      tenantId,
+      workspaceId,
+      funnelId,
+      startDate,
+      endDate
+    )) as Array<{ avg_conversion_rate: number }>
 
-    return Math.round((result[0]?.avg_conversion_rate || 0) * 100) / 100;
+    return Math.round((result[0]?.avg_conversion_rate || 0) * 100) / 100
   }
 
   /**
@@ -428,7 +469,7 @@ export class FunnelAnalyticsRepository {
    */
   async getPeerFunnelMetrics(
     tenantId: bigint,
-    workspaceId: bigint,
+    workspaceId: bigint
   ): Promise<Array<{ funnel_id: bigint; conversion_rate: number }>> {
     const query = `
       WITH funnel_list AS (
@@ -459,19 +500,17 @@ export class FunnelAnalyticsRepository {
       FROM funnel_metrics
       WHERE entries > 0
       ORDER BY conversion_rate DESC
-    `;
+    `
 
-    const result = await this.prisma.$queryRawUnsafe(query, 
-      tenantId, workspaceId
-    ) as Array<{ 
-      funnel_id: bigint; 
-      conversion_rate: number 
-    }>;
+    const result = (await this.prisma.$queryRawUnsafe(query, tenantId, workspaceId)) as Array<{
+      funnel_id: bigint
+      conversion_rate: number
+    }>
 
-    return result.map(row => ({
+    return result.map((row) => ({
       funnel_id: row.funnel_id,
       conversion_rate: Number(row.conversion_rate),
-    }));
+    }))
   }
 
   /**
@@ -486,16 +525,18 @@ export class FunnelAnalyticsRepository {
     workspaceId: bigint,
     funnelId: bigint,
     startDate: string,
-    endDate: string,
-  ): Promise<Array<{
-    step_order: number;
-    step_name: string;
-    entries: number;
-    exits: number;
-    drop_off_rate: number;
-    average_time_before_exit: number;
-    exit_velocity: 'immediate' | 'quick' | 'delayed' | 'hesitant';
-  }>> {
+    endDate: string
+  ): Promise<
+    Array<{
+      step_order: number
+      step_name: string
+      entries: number
+      exits: number
+      drop_off_rate: number
+      average_time_before_exit: number
+      exit_velocity: 'immediate' | 'quick' | 'delayed' | 'hesitant'
+    }>
+  > {
     const query = `
       WITH funnel_steps AS (
         SELECT 
@@ -560,21 +601,26 @@ export class FunnelAnalyticsRepository {
       FROM step_entries se
       LEFT JOIN step_exits sx ON se.step_order = sx.step_order
       ORDER BY se.step_order
-    `;
+    `
 
-    const result = await this.prisma.$queryRawUnsafe(query, 
-      tenantId, workspaceId, funnelId, startDate, endDate
-    ) as Array<{
-      step_order: number;
-      step_name: string;
-      entries: bigint;
-      exits: bigint;
-      drop_off_rate: number;
-      average_time_before_exit: number;
-      exit_velocity: 'immediate' | 'quick' | 'delayed' | 'hesitant';
-    }>;
+    const result = (await this.prisma.$queryRawUnsafe(
+      query,
+      tenantId,
+      workspaceId,
+      funnelId,
+      startDate,
+      endDate
+    )) as Array<{
+      step_order: number
+      step_name: string
+      entries: bigint
+      exits: bigint
+      drop_off_rate: number
+      average_time_before_exit: number
+      exit_velocity: 'immediate' | 'quick' | 'delayed' | 'hesitant'
+    }>
 
-    return result.map(row => ({
+    return result.map((row) => ({
       step_order: row.step_order,
       step_name: row.step_name,
       entries: Number(row.entries),
@@ -582,7 +628,7 @@ export class FunnelAnalyticsRepository {
       drop_off_rate: Number(row.drop_off_rate),
       average_time_before_exit: Number(row.average_time_before_exit),
       exit_velocity: row.exit_velocity,
-    }));
+    }))
   }
 
   /**
@@ -593,22 +639,24 @@ export class FunnelAnalyticsRepository {
     workspaceId: bigint,
     funnelId: bigint,
     startDate: string,
-    endDate: string,
-  ): Promise<Array<{
-    from_step: number;
-    from_step_name: string;
-    exit_destinations: Array<{
-      destination_type: string;
-      destination: string;
-      user_count: number;
-      percentage: number;
-    }>;
-    exit_patterns: Array<{
-      pattern_type: string;
-      description: string;
-      frequency: number;
-    }>;
-  }>> {
+    endDate: string
+  ): Promise<
+    Array<{
+      from_step: number
+      from_step_name: string
+      exit_destinations: Array<{
+        destination_type: string
+        destination: string
+        user_count: number
+        percentage: number
+      }>
+      exit_patterns: Array<{
+        pattern_type: string
+        description: string
+        frequency: number
+      }>
+    }>
+  > {
     // This is a complex analysis that would require event tracking beyond funnel_user_state
     // For now, we'll provide a simplified version based on available data
     const query = `
@@ -652,21 +700,26 @@ export class FunnelAnalyticsRepository {
         ROUND((delayed_exits::decimal / NULLIF(total_exits, 0)) * 100, 1) as delayed_exit_percentage
       FROM exit_analysis
       ORDER BY from_step
-    `;
+    `
 
-    const result = await this.prisma.$queryRawUnsafe(query, 
-      tenantId, workspaceId, funnelId, startDate, endDate
-    ) as Array<{
-      from_step: number;
-      from_step_name: string;
-      total_exits: bigint;
-      immediate_bounces: bigint;
-      delayed_exits: bigint;
-      bounce_percentage: number;
-      delayed_exit_percentage: number;
-    }>;
+    const result = (await this.prisma.$queryRawUnsafe(
+      query,
+      tenantId,
+      workspaceId,
+      funnelId,
+      startDate,
+      endDate
+    )) as Array<{
+      from_step: number
+      from_step_name: string
+      total_exits: bigint
+      immediate_bounces: bigint
+      delayed_exits: bigint
+      bounce_percentage: number
+      delayed_exit_percentage: number
+    }>
 
-    return result.map(row => ({
+    return result.map((row) => ({
       from_step: row.from_step,
       from_step_name: row.from_step_name,
       exit_destinations: [
@@ -695,7 +748,7 @@ export class FunnelAnalyticsRepository {
           frequency: Number(row.delayed_exits),
         },
       ],
-    }));
+    }))
   }
 
   /**
@@ -706,23 +759,25 @@ export class FunnelAnalyticsRepository {
     workspaceId: bigint,
     funnelId: bigint,
     startDate: string,
-    endDate: string,
-  ): Promise<Array<{
-    step_order: number;
-    step_name: string;
-    severity_score: number;
-    impact_on_overall_conversion: number;
-    likely_causes: Array<{
-      cause_type: 'technical' | 'ux' | 'content' | 'timing' | 'external';
-      description: string;
-      confidence: number;
-    }>;
-    optimization_potential: {
-      conservative_estimate: number;
-      optimistic_estimate: number;
-      effort_required: 'low' | 'medium' | 'high';
-    };
-  }>> {
+    endDate: string
+  ): Promise<
+    Array<{
+      step_order: number
+      step_name: string
+      severity_score: number
+      impact_on_overall_conversion: number
+      likely_causes: Array<{
+        cause_type: 'technical' | 'ux' | 'content' | 'timing' | 'external'
+        description: string
+        confidence: number
+      }>
+      optimization_potential: {
+        conservative_estimate: number
+        optimistic_estimate: number
+        effort_required: 'low' | 'medium' | 'high'
+      }
+    }>
+  > {
     const query = `
       WITH funnel_steps AS (
         SELECT 
@@ -795,39 +850,45 @@ export class FunnelAnalyticsRepository {
       CROSS JOIN overall_funnel_metrics ofm
       WHERE sa.step_exits > 0
       ORDER BY severity_score DESC
-    `;
+    `
 
-    const result = await this.prisma.$queryRawUnsafe(query, 
-      tenantId, workspaceId, funnelId, startDate, endDate
-    ) as Array<{
-      step_order: number;
-      step_name: string;
-      step_type: string;
-      step_entries: bigint;
-      step_exits: bigint;
-      avg_time_on_step: number;
-      drop_off_rate: number;
-      total_entries: bigint;
-      total_conversions: bigint;
-      severity_score: number;
-      impact_on_overall_conversion: number;
-    }>;
+    const result = (await this.prisma.$queryRawUnsafe(
+      query,
+      tenantId,
+      workspaceId,
+      funnelId,
+      startDate,
+      endDate
+    )) as Array<{
+      step_order: number
+      step_name: string
+      step_type: string
+      step_entries: bigint
+      step_exits: bigint
+      avg_time_on_step: number
+      drop_off_rate: number
+      total_entries: bigint
+      total_conversions: bigint
+      severity_score: number
+      impact_on_overall_conversion: number
+    }>
 
-    return result.map(row => {
-      const severityScore = Number(row.severity_score);
-      const dropOffRate = Number(row.drop_off_rate);
-      const avgTime = Number(row.avg_time_on_step);
-      const stepType = row.step_type;
+    return result.map((row) => {
+      const severityScore = Number(row.severity_score)
+      const dropOffRate = Number(row.drop_off_rate)
+      const avgTime = Number(row.avg_time_on_step)
+      const stepType = row.step_type
 
       // Generate likely causes based on data patterns
-      const likelyCauses = [];
-      
+      const likelyCauses = []
+
       if (avgTime < 30) {
         likelyCauses.push({
           cause_type: 'ux' as const,
-          description: 'Users are leaving immediately, suggesting UX issues or unclear instructions',
+          description:
+            'Users are leaving immediately, suggesting UX issues or unclear instructions',
           confidence: Math.min(95, severityScore + 20),
-        });
+        })
       }
 
       if (avgTime > 300 && dropOffRate > 50) {
@@ -835,7 +896,7 @@ export class FunnelAnalyticsRepository {
           cause_type: 'content' as const,
           description: 'Long time before exit suggests content or form complexity issues',
           confidence: Math.min(90, severityScore + 15),
-        });
+        })
       }
 
       if (stepType === 'page' && dropOffRate > 60) {
@@ -843,7 +904,7 @@ export class FunnelAnalyticsRepository {
           cause_type: 'technical' as const,
           description: 'High drop-off on page step may indicate loading or performance issues',
           confidence: Math.min(85, severityScore + 10),
-        });
+        })
       }
 
       if (stepType === 'event' && dropOffRate > 40) {
@@ -851,7 +912,7 @@ export class FunnelAnalyticsRepository {
           cause_type: 'ux' as const,
           description: 'Event-based step with high drop-off suggests interaction design issues',
           confidence: Math.min(80, severityScore + 5),
-        });
+        })
       }
 
       // Default cause if none specific identified
@@ -860,7 +921,7 @@ export class FunnelAnalyticsRepository {
           cause_type: 'external' as const,
           description: 'Drop-off pattern requires further investigation',
           confidence: Math.max(40, severityScore - 20),
-        });
+        })
       }
 
       return {
@@ -874,8 +935,8 @@ export class FunnelAnalyticsRepository {
           optimistic_estimate: Math.round(dropOffRate * 0.5), // 50% improvement
           effort_required: severityScore > 70 ? 'high' : severityScore > 40 ? 'medium' : 'low',
         },
-      };
-    });
+      }
+    })
   }
 
   /**
@@ -886,37 +947,44 @@ export class FunnelAnalyticsRepository {
     workspaceId: bigint,
     funnelId: bigint,
     startDate: string,
-    endDate: string,
-  ): Promise<Array<{
-    type: 'technical' | 'ux' | 'content' | 'flow' | 'timing';
-    priority: 'low' | 'medium' | 'high' | 'critical';
-    title: string;
-    description: string;
-    estimated_impact: {
-      conversion_rate_lift: number;
-      affected_users_per_month: number;
-      confidence: number;
-    };
-    implementation: {
-      effort_level: 'low' | 'medium' | 'high';
-      estimated_dev_days: number;
-      technical_requirements: string[];
-    };
-    ab_test_suggestion?: {
-      test_duration_days: number;
-      minimum_sample_size: number;
-      success_metrics: string[];
-    };
-  }>> {
+    endDate: string
+  ): Promise<
+    Array<{
+      type: 'technical' | 'ux' | 'content' | 'flow' | 'timing'
+      priority: 'low' | 'medium' | 'high' | 'critical'
+      title: string
+      description: string
+      estimated_impact: {
+        conversion_rate_lift: number
+        affected_users_per_month: number
+        confidence: number
+      }
+      implementation: {
+        effort_level: 'low' | 'medium' | 'high'
+        estimated_dev_days: number
+        technical_requirements: string[]
+      }
+      ab_test_suggestion?: {
+        test_duration_days: number
+        minimum_sample_size: number
+        success_metrics: string[]
+      }
+    }>
+  > {
     // Get bottleneck data for recommendation generation
     const bottlenecks = await this.getBottleneckSeverityScoring(
-      tenantId, workspaceId, funnelId, startDate, endDate
-    );
+      tenantId,
+      workspaceId,
+      funnelId,
+      startDate,
+      endDate
+    )
 
-    const recommendations = [];
+    const recommendations = []
 
-    for (const bottleneck of bottlenecks.slice(0, 5)) { // Top 5 bottlenecks
-      const impactUsers = Math.round(bottleneck.impact_on_overall_conversion * 1000); // Assuming 1k monthly users
+    for (const bottleneck of bottlenecks.slice(0, 5)) {
+      // Top 5 bottlenecks
+      const impactUsers = Math.round(bottleneck.impact_on_overall_conversion * 1000) // Assuming 1k monthly users
 
       if (bottleneck.severity_score > 70) {
         recommendations.push({
@@ -944,7 +1012,7 @@ export class FunnelAnalyticsRepository {
             minimum_sample_size: Math.max(1000, impactUsers * 2),
             success_metrics: ['conversion_rate', 'time_on_step', 'completion_rate'],
           },
-        });
+        })
       }
 
       if (bottleneck.severity_score > 50 && bottleneck.severity_score <= 70) {
@@ -954,7 +1022,9 @@ export class FunnelAnalyticsRepository {
           title: `Content optimization for Step ${bottleneck.step_order}: ${bottleneck.step_name}`,
           description: `Moderate drop-off detected. Consider content clarity, form simplification, or progressive disclosure techniques.`,
           estimated_impact: {
-            conversion_rate_lift: Math.round(bottleneck.optimization_potential.conservative_estimate * 0.8),
+            conversion_rate_lift: Math.round(
+              bottleneck.optimization_potential.conservative_estimate * 0.8
+            ),
             affected_users_per_month: Math.round(impactUsers * 0.8),
             confidence: 70,
           },
@@ -973,7 +1043,7 @@ export class FunnelAnalyticsRepository {
             minimum_sample_size: Math.max(500, impactUsers),
             success_metrics: ['completion_rate', 'form_abandonment', 'time_to_complete'],
           },
-        });
+        })
       }
 
       if (bottleneck.severity_score > 30 && bottleneck.severity_score <= 50) {
@@ -983,7 +1053,9 @@ export class FunnelAnalyticsRepository {
           title: `Flow optimization for Step ${bottleneck.step_order}: ${bottleneck.step_name}`,
           description: `Minor bottleneck identified. Consider step reordering, optional field reduction, or workflow streamlining.`,
           estimated_impact: {
-            conversion_rate_lift: Math.round(bottleneck.optimization_potential.conservative_estimate * 0.6),
+            conversion_rate_lift: Math.round(
+              bottleneck.optimization_potential.conservative_estimate * 0.6
+            ),
             affected_users_per_month: Math.round(impactUsers * 0.6),
             confidence: 60,
           },
@@ -997,7 +1069,7 @@ export class FunnelAnalyticsRepository {
               'User journey mapping',
             ],
           },
-        });
+        })
       }
     }
 
@@ -1007,7 +1079,8 @@ export class FunnelAnalyticsRepository {
         type: 'timing' as const,
         priority: 'low' as const,
         title: 'General funnel optimization review',
-        description: 'No critical bottlenecks detected. Consider periodic UX review and performance monitoring.',
+        description:
+          'No critical bottlenecks detected. Consider periodic UX review and performance monitoring.',
         estimated_impact: {
           conversion_rate_lift: 5,
           affected_users_per_month: 100,
@@ -1022,10 +1095,10 @@ export class FunnelAnalyticsRepository {
             'User feedback collection',
           ],
         },
-      });
+      })
     }
 
-    return recommendations;
+    return recommendations
   }
 
   /**
@@ -1041,31 +1114,33 @@ export class FunnelAnalyticsRepository {
     funnelId: bigint,
     startDate: string,
     endDate: string,
-    cohortPeriod: 'daily' | 'weekly' | 'monthly',
-  ): Promise<Array<{
-    cohort_id: string;
-    cohort_period: string;
-    cohort_size: number;
-    device_breakdown: Record<string, number>;
-    traffic_source_breakdown: Record<string, number>;
-    geographic_breakdown: Record<string, number>;
-  }>> {
-    let dateFormat: string;
-    let truncFormat: string;
+    cohortPeriod: 'daily' | 'weekly' | 'monthly'
+  ): Promise<
+    Array<{
+      cohort_id: string
+      cohort_period: string
+      cohort_size: number
+      device_breakdown: Record<string, number>
+      traffic_source_breakdown: Record<string, number>
+      geographic_breakdown: Record<string, number>
+    }>
+  > {
+    let dateFormat: string
+    let truncFormat: string
 
     switch (cohortPeriod) {
       case 'daily':
-        dateFormat = 'YYYY-MM-DD';
-        truncFormat = 'day';
-        break;
+        dateFormat = 'YYYY-MM-DD'
+        truncFormat = 'day'
+        break
       case 'weekly':
-        dateFormat = 'YYYY-"W"WW';
-        truncFormat = 'week';
-        break;
+        dateFormat = 'YYYY-"W"WW'
+        truncFormat = 'week'
+        break
       case 'monthly':
-        dateFormat = 'YYYY-MM';
-        truncFormat = 'month';
-        break;
+        dateFormat = 'YYYY-MM'
+        truncFormat = 'month'
+        break
     }
 
     const query = `
@@ -1127,26 +1202,31 @@ export class FunnelAnalyticsRepository {
         COALESCE(geo_breakdown, '{}'::jsonb) as geo_breakdown
       FROM cohort_summary
       ORDER BY cohort_period
-    `;
+    `
 
-    const result = await this.prisma.$queryRawUnsafe(query, 
-      tenantId, workspaceId, funnelId, startDate, endDate
-    ) as Array<{
-      cohort_period: string;
-      cohort_size: bigint;
-      device_breakdown: any;
-      source_breakdown: any;
-      geo_breakdown: any;
-    }>;
+    const result = (await this.prisma.$queryRawUnsafe(
+      query,
+      tenantId,
+      workspaceId,
+      funnelId,
+      startDate,
+      endDate
+    )) as Array<{
+      cohort_period: string
+      cohort_size: bigint
+      device_breakdown: any
+      source_breakdown: any
+      geo_breakdown: any
+    }>
 
-    return result.map(row => ({
+    return result.map((row) => ({
       cohort_id: `cohort_${row.cohort_period}`,
       cohort_period: row.cohort_period,
       cohort_size: Number(row.cohort_size),
       device_breakdown: row.device_breakdown || {},
       traffic_source_breakdown: row.source_breakdown || {},
       geographic_breakdown: row.geo_breakdown || {},
-    }));
+    }))
   }
 
   /**
@@ -1158,35 +1238,37 @@ export class FunnelAnalyticsRepository {
     funnelId: bigint,
     startDate: string,
     endDate: string,
-    cohortPeriod: 'daily' | 'weekly' | 'monthly',
-  ): Promise<Array<{
-    cohort_id: string;
-    cohort_period: string;
-    step_retention: Array<{
-      step_order: number;
-      users_reached: number;
-      retention_rate: number;
-      step_conversion_rate: number;
-    }>;
-    final_conversion_rate: number;
-    average_time_to_convert: number;
-  }>> {
-    let truncFormat: string;
-    let dateFormat: string;
+    cohortPeriod: 'daily' | 'weekly' | 'monthly'
+  ): Promise<
+    Array<{
+      cohort_id: string
+      cohort_period: string
+      step_retention: Array<{
+        step_order: number
+        users_reached: number
+        retention_rate: number
+        step_conversion_rate: number
+      }>
+      final_conversion_rate: number
+      average_time_to_convert: number
+    }>
+  > {
+    let truncFormat: string
+    let dateFormat: string
 
     switch (cohortPeriod) {
       case 'daily':
-        dateFormat = 'YYYY-MM-DD';
-        truncFormat = 'day';
-        break;
+        dateFormat = 'YYYY-MM-DD'
+        truncFormat = 'day'
+        break
       case 'weekly':
-        dateFormat = 'YYYY-"W"WW';
-        truncFormat = 'week';
-        break;
+        dateFormat = 'YYYY-"W"WW'
+        truncFormat = 'week'
+        break
       case 'monthly':
-        dateFormat = 'YYYY-MM';
-        truncFormat = 'month';
-        break;
+        dateFormat = 'YYYY-MM'
+        truncFormat = 'month'
+        break
     }
 
     const query = `
@@ -1245,23 +1327,28 @@ export class FunnelAnalyticsRepository {
         END as conversion_rate
       FROM cohort_step_analysis
       ORDER BY cohort_period, step_order
-    `;
+    `
 
-    const result = await this.prisma.$queryRawUnsafe(query, 
-      tenantId, workspaceId, funnelId, startDate, endDate
-    ) as Array<{
-      cohort_period: string;
-      step_order: number;
-      users_reached: bigint;
-      cohort_size: bigint;
-      conversions: bigint;
-      avg_conversion_time: number;
-      retention_rate: number;
-      conversion_rate: number;
-    }>;
+    const result = (await this.prisma.$queryRawUnsafe(
+      query,
+      tenantId,
+      workspaceId,
+      funnelId,
+      startDate,
+      endDate
+    )) as Array<{
+      cohort_period: string
+      step_order: number
+      users_reached: bigint
+      cohort_size: bigint
+      conversions: bigint
+      avg_conversion_time: number
+      retention_rate: number
+      conversion_rate: number
+    }>
 
     // Group by cohort and build step retention arrays
-    const cohortMap = new Map();
+    const cohortMap = new Map()
 
     for (const row of result) {
       if (!cohortMap.has(row.cohort_period)) {
@@ -1272,40 +1359,43 @@ export class FunnelAnalyticsRepository {
           cohort_size: Number(row.cohort_size),
           total_conversions: Number(row.conversions),
           avg_conversion_time: Number(row.avg_conversion_time) || 0,
-        });
+        })
       }
 
-      const cohort = cohortMap.get(row.cohort_period);
-      
+      const cohort = cohortMap.get(row.cohort_period)
+
       // Calculate step conversion rate (from previous step)
-      const prevStep = cohort.step_retention[row.step_order - 1];
-      const stepConversionRate = prevStep 
-        ? (prevStep.users_reached > 0 ? (Number(row.users_reached) / prevStep.users_reached) * 100 : 0)
-        : 100; // First step is always 100%
+      const prevStep = cohort.step_retention[row.step_order - 1]
+      const stepConversionRate = prevStep
+        ? prevStep.users_reached > 0
+          ? (Number(row.users_reached) / prevStep.users_reached) * 100
+          : 0
+        : 100 // First step is always 100%
 
       cohort.step_retention.push({
         step_order: row.step_order,
         users_reached: Number(row.users_reached),
         retention_rate: Number(row.retention_rate),
         step_conversion_rate: Math.round(stepConversionRate * 100) / 100,
-      });
+      })
 
       // Update overall metrics
       if (row.conversions > 0) {
-        cohort.total_conversions = Number(row.conversions);
-        cohort.avg_conversion_time = Number(row.avg_conversion_time) || 0;
+        cohort.total_conversions = Number(row.conversions)
+        cohort.avg_conversion_time = Number(row.avg_conversion_time) || 0
       }
     }
 
-    return Array.from(cohortMap.values()).map(cohort => ({
+    return Array.from(cohortMap.values()).map((cohort) => ({
       cohort_id: cohort.cohort_id,
       cohort_period: cohort.cohort_period,
       step_retention: cohort.step_retention,
-      final_conversion_rate: cohort.cohort_size > 0 
-        ? Math.round((cohort.total_conversions / cohort.cohort_size) * 10000) / 100
-        : 0,
+      final_conversion_rate:
+        cohort.cohort_size > 0
+          ? Math.round((cohort.total_conversions / cohort.cohort_size) * 10000) / 100
+          : 0,
       average_time_to_convert: cohort.avg_conversion_time,
-    }));
+    }))
   }
 
   /**
@@ -1317,36 +1407,38 @@ export class FunnelAnalyticsRepository {
     funnelId: bigint,
     startDate: string,
     endDate: string,
-    cohortPeriod: 'daily' | 'weekly' | 'monthly',
-  ): Promise<Array<{
-    cohort_id: string;
-    cohort_period: string;
-    retention_curve: Array<{
-      period_offset: number;
-      retained_users: number;
-      retention_percentage: number;
-    }>;
-  }>> {
-    let truncFormat: string;
-    let dateFormat: string;
-    let intervalUnit: string;
+    cohortPeriod: 'daily' | 'weekly' | 'monthly'
+  ): Promise<
+    Array<{
+      cohort_id: string
+      cohort_period: string
+      retention_curve: Array<{
+        period_offset: number
+        retained_users: number
+        retention_percentage: number
+      }>
+    }>
+  > {
+    let truncFormat: string
+    let dateFormat: string
+    let intervalUnit: string
 
     switch (cohortPeriod) {
       case 'daily':
-        dateFormat = 'YYYY-MM-DD';
-        truncFormat = 'day';
-        intervalUnit = 'day';
-        break;
+        dateFormat = 'YYYY-MM-DD'
+        truncFormat = 'day'
+        intervalUnit = 'day'
+        break
       case 'weekly':
-        dateFormat = 'YYYY-"W"WW';
-        truncFormat = 'week';
-        intervalUnit = 'week';
-        break;
+        dateFormat = 'YYYY-"W"WW'
+        truncFormat = 'week'
+        intervalUnit = 'week'
+        break
       case 'monthly':
-        dateFormat = 'YYYY-MM';
-        truncFormat = 'month';
-        intervalUnit = 'month';
-        break;
+        dateFormat = 'YYYY-MM'
+        truncFormat = 'month'
+        intervalUnit = 'month'
+        break
     }
 
     const query = `
@@ -1404,43 +1496,48 @@ export class FunnelAnalyticsRepository {
         period_4_users
       FROM retention_analysis
       ORDER BY cohort_period
-    `;
+    `
 
-    const result = await this.prisma.$queryRawUnsafe(query, 
-      tenantId, workspaceId, funnelId, startDate, endDate
-    ) as Array<{
-      cohort_period: string;
-      cohort_size: bigint;
-      period_0_users: bigint;
-      period_1_users: bigint;
-      period_2_users: bigint;
-      period_3_users: bigint;
-      period_4_users: bigint;
-    }>;
+    const result = (await this.prisma.$queryRawUnsafe(
+      query,
+      tenantId,
+      workspaceId,
+      funnelId,
+      startDate,
+      endDate
+    )) as Array<{
+      cohort_period: string
+      cohort_size: bigint
+      period_0_users: bigint
+      period_1_users: bigint
+      period_2_users: bigint
+      period_3_users: bigint
+      period_4_users: bigint
+    }>
 
-    return result.map(row => {
-      const cohortSize = Number(row.cohort_size);
-      const retentionCurve = [];
+    return result.map((row) => {
+      const cohortSize = Number(row.cohort_size)
+      const retentionCurve = []
 
       // Build retention curve for periods 0-4
       for (let period = 0; period <= 4; period++) {
-        const usersKey = `period_${period}_users` as keyof typeof row;
-        const users = Number(row[usersKey]);
-        const retentionPercentage = cohortSize > 0 ? (users / cohortSize) * 100 : 0;
+        const usersKey = `period_${period}_users` as keyof typeof row
+        const users = Number(row[usersKey])
+        const retentionPercentage = cohortSize > 0 ? (users / cohortSize) * 100 : 0
 
         retentionCurve.push({
           period_offset: period,
           retained_users: users,
           retention_percentage: Math.round(retentionPercentage * 100) / 100,
-        });
+        })
       }
 
       return {
         cohort_id: `cohort_${row.cohort_period}`,
         cohort_period: row.cohort_period,
         retention_curve: retentionCurve,
-      };
-    });
+      }
+    })
   }
 
   /**
@@ -1452,39 +1549,46 @@ export class FunnelAnalyticsRepository {
     funnelId: bigint,
     startDate: string,
     endDate: string,
-    cohortPeriod: 'daily' | 'weekly' | 'monthly',
-  ): Promise<Array<{
-    metric: 'conversion_rate' | 'retention_rate' | 'time_to_convert';
-    best_performing_cohort: {
-      cohort_id: string;
-      value: number;
-    };
-    worst_performing_cohort: {
-      cohort_id: string;
-      value: number;
-    };
-    trend_direction: 'improving' | 'declining' | 'stable' | 'volatile';
-    trend_strength: number;
-    variance_significance: boolean;
-    f_test_p_value: number;
-  }>> {
+    cohortPeriod: 'daily' | 'weekly' | 'monthly'
+  ): Promise<
+    Array<{
+      metric: 'conversion_rate' | 'retention_rate' | 'time_to_convert'
+      best_performing_cohort: {
+        cohort_id: string
+        value: number
+      }
+      worst_performing_cohort: {
+        cohort_id: string
+        value: number
+      }
+      trend_direction: 'improving' | 'declining' | 'stable' | 'volatile'
+      trend_strength: number
+      variance_significance: boolean
+      f_test_p_value: number
+    }>
+  > {
     // Get cohort progression data
     const cohorts = await this.getCohortProgression(
-      tenantId, workspaceId, funnelId, startDate, endDate, cohortPeriod
-    );
+      tenantId,
+      workspaceId,
+      funnelId,
+      startDate,
+      endDate,
+      cohortPeriod
+    )
 
     if (cohorts.length < 2) {
-      return []; // Need at least 2 cohorts for comparison
+      return [] // Need at least 2 cohorts for comparison
     }
 
-    const comparisons = [];
+    const comparisons = []
 
     // Conversion rate comparison
-    const conversionRates = cohorts.map(c => c.final_conversion_rate);
-    const bestConversion = Math.max(...conversionRates);
-    const worstConversion = Math.min(...conversionRates);
-    const bestConversionCohort = cohorts.find(c => c.final_conversion_rate === bestConversion);
-    const worstConversionCohort = cohorts.find(c => c.final_conversion_rate === worstConversion);
+    const conversionRates = cohorts.map((c) => c.final_conversion_rate)
+    const bestConversion = Math.max(...conversionRates)
+    const worstConversion = Math.min(...conversionRates)
+    const bestConversionCohort = cohorts.find((c) => c.final_conversion_rate === bestConversion)
+    const worstConversionCohort = cohorts.find((c) => c.final_conversion_rate === worstConversion)
 
     comparisons.push({
       metric: 'conversion_rate' as const,
@@ -1500,15 +1604,15 @@ export class FunnelAnalyticsRepository {
       trend_strength: this.calculateTrendStrength(conversionRates),
       variance_significance: this.calculateVarianceSignificance(conversionRates),
       f_test_p_value: this.calculateFTestPValue(conversionRates),
-    });
+    })
 
     // Time to convert comparison
-    const timeToConvert = cohorts.map(c => c.average_time_to_convert).filter(t => t > 0);
+    const timeToConvert = cohorts.map((c) => c.average_time_to_convert).filter((t) => t > 0)
     if (timeToConvert.length >= 2) {
-      const bestTime = Math.min(...timeToConvert);
-      const worstTime = Math.max(...timeToConvert);
-      const bestTimeCohort = cohorts.find(c => c.average_time_to_convert === bestTime);
-      const worstTimeCohort = cohorts.find(c => c.average_time_to_convert === worstTime);
+      const bestTime = Math.min(...timeToConvert)
+      const worstTime = Math.max(...timeToConvert)
+      const bestTimeCohort = cohorts.find((c) => c.average_time_to_convert === bestTime)
+      const worstTimeCohort = cohorts.find((c) => c.average_time_to_convert === worstTime)
 
       comparisons.push({
         metric: 'time_to_convert' as const,
@@ -1524,79 +1628,81 @@ export class FunnelAnalyticsRepository {
         trend_strength: this.calculateTrendStrength(timeToConvert),
         variance_significance: this.calculateVarianceSignificance(timeToConvert),
         f_test_p_value: this.calculateFTestPValue(timeToConvert),
-      });
+      })
     }
 
-    return comparisons;
+    return comparisons
   }
 
   /**
    * Helper methods for statistical analysis
    */
-  private calculateTrendDirection(values: number[]): 'improving' | 'declining' | 'stable' | 'volatile' {
-    if (values.length < 3) return 'stable';
+  private calculateTrendDirection(
+    values: number[]
+  ): 'improving' | 'declining' | 'stable' | 'volatile' {
+    if (values.length < 3) return 'stable'
 
-    const first = values.slice(0, Math.floor(values.length / 3));
-    const last = values.slice(-Math.floor(values.length / 3));
-    
-    const firstAvg = first.reduce((a, b) => a + b, 0) / first.length;
-    const lastAvg = last.reduce((a, b) => a + b, 0) / last.length;
-    
-    const change = (lastAvg - firstAvg) / firstAvg;
-    const volatility = this.calculateVolatility(values);
+    const first = values.slice(0, Math.floor(values.length / 3))
+    const last = values.slice(-Math.floor(values.length / 3))
 
-    if (volatility > 0.3) return 'volatile';
-    if (Math.abs(change) < 0.05) return 'stable';
-    return change > 0 ? 'improving' : 'declining';
+    const firstAvg = first.reduce((a, b) => a + b, 0) / first.length
+    const lastAvg = last.reduce((a, b) => a + b, 0) / last.length
+
+    const change = (lastAvg - firstAvg) / firstAvg
+    const volatility = this.calculateVolatility(values)
+
+    if (volatility > 0.3) return 'volatile'
+    if (Math.abs(change) < 0.05) return 'stable'
+    return change > 0 ? 'improving' : 'declining'
   }
 
   private calculateTrendStrength(values: number[]): number {
-    if (values.length < 2) return 0;
+    if (values.length < 2) return 0
 
     // Simple linear correlation calculation
-    const n = values.length;
-    const x = Array.from({length: n}, (_, i) => i);
-    const y = values;
+    const n = values.length
+    const x = Array.from({ length: n }, (_, i) => i)
+    const y = values
 
-    const sumX = x.reduce((a, b) => a + b, 0);
-    const sumY = y.reduce((a, b) => a + b, 0);
-    const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
-    const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
-    const sumY2 = y.reduce((sum, yi) => sum + yi * yi, 0);
+    const sumX = x.reduce((a, b) => a + b, 0)
+    const sumY = y.reduce((a, b) => a + b, 0)
+    const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0)
+    const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0)
+    const sumY2 = y.reduce((sum, yi) => sum + yi * yi, 0)
 
-    const numerator = n * sumXY - sumX * sumY;
-    const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+    const numerator = n * sumXY - sumX * sumY
+    const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY))
 
-    return denominator === 0 ? 0 : Math.abs(numerator / denominator);
+    return denominator === 0 ? 0 : Math.abs(numerator / denominator)
   }
 
   private calculateVolatility(values: number[]): number {
-    const mean = values.reduce((a, b) => a + b, 0) / values.length;
-    const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
-    return Math.sqrt(variance) / mean;
+    const mean = values.reduce((a, b) => a + b, 0) / values.length
+    const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length
+    return Math.sqrt(variance) / mean
   }
 
   private calculateVarianceSignificance(values: number[]): boolean {
-    if (values.length < 3) return false;
-    const volatility = this.calculateVolatility(values);
-    return volatility > 0.2; // 20% coefficient of variation threshold
+    if (values.length < 3) return false
+    const volatility = this.calculateVolatility(values)
+    return volatility > 0.2 // 20% coefficient of variation threshold
   }
 
   private calculateFTestPValue(values: number[]): number {
     // Simplified F-test p-value calculation
     // In a real implementation, this would be more sophisticated
-    const volatility = this.calculateVolatility(values);
-    const n = values.length;
-    
+    const volatility = this.calculateVolatility(values)
+    const n = values.length
+
     // Approximate p-value based on volatility and sample size
-    if (volatility > 0.5 || n < 3) return 0.95; // Not significant
-    if (volatility < 0.1) return 0.01; // Highly significant
-    
-    return Math.min(0.95, Math.max(0.01, volatility * 2));
+    if (volatility > 0.5 || n < 3) return 0.95 // Not significant
+    if (volatility < 0.1) return 0.01 // Highly significant
+
+    return Math.min(0.95, Math.max(0.01, volatility * 2))
   }
 
   // Task 2.4: Time-to-Conversion Analytics
-  
+
   /**
    * Calculate conversion timing distribution with percentiles
    * Analyzes time from funnel entry to final conversion
@@ -1606,36 +1712,38 @@ export class FunnelAnalyticsRepository {
     workspaceId: bigint,
     funnelId: bigint,
     startDate: Date,
-    endDate: Date,
+    endDate: Date
   ): Promise<{
-    percentiles: Record<string, number>;
+    percentiles: Record<string, number>
     distribution: Array<{
-      time_bucket: string;
-      time_range: string;
-      user_count: number;
-      percentage: number;
-    }>;
+      time_bucket: string
+      time_range: string
+      user_count: number
+      percentage: number
+    }>
     statistics: {
-      mean_seconds: number;
-      median_seconds: number;
-      stddev_seconds: number;
-      min_seconds: number;
-      max_seconds: number;
-    };
+      mean_seconds: number
+      median_seconds: number
+      stddev_seconds: number
+      min_seconds: number
+      max_seconds: number
+    }
   }> {
-    const result = await this.prisma.$queryRaw<Array<{
-      p10: number;
-      p25: number;
-      p50: number;
-      p75: number;
-      p90: number;
-      p95: number;
-      p99: number;
-      mean_seconds: number;
-      stddev_seconds: number;
-      min_seconds: number;
-      max_seconds: number;
-    }>>`
+    const result = await this.prisma.$queryRaw<
+      Array<{
+        p10: number
+        p25: number
+        p50: number
+        p75: number
+        p90: number
+        p95: number
+        p99: number
+        mean_seconds: number
+        stddev_seconds: number
+        min_seconds: number
+        max_seconds: number
+      }>
+    >`
       WITH funnel_conversions AS (
         SELECT 
           anonymous_id,
@@ -1683,15 +1791,17 @@ export class FunnelAnalyticsRepository {
         MAX(conversion_time_seconds) as max_seconds
       FROM funnel_conversions
       WHERE conversion_time_seconds > 0
-    `;
+    `
 
     // Get distribution buckets
-    const distributionResult = await this.prisma.$queryRaw<Array<{
-      time_bucket: string;
-      time_range: string;
-      user_count: bigint;
-      percentage: number;
-    }>>`
+    const distributionResult = await this.prisma.$queryRaw<
+      Array<{
+        time_bucket: string
+        time_range: string
+        user_count: bigint
+        percentage: number
+      }>
+    >`
       WITH funnel_conversions AS (
         SELECT 
           anonymous_id,
@@ -1782,24 +1892,33 @@ export class FunnelAnalyticsRepository {
           WHEN '1-7d' THEN 6
           ELSE 7
         END
-    `;
+    `
 
     const stats = result[0] || {
-      p10: 0, p25: 0, p50: 0, p75: 0, p90: 0, p95: 0, p99: 0,
-      mean_seconds: 0, stddev_seconds: 0, min_seconds: 0, max_seconds: 0
-    };
+      p10: 0,
+      p25: 0,
+      p50: 0,
+      p75: 0,
+      p90: 0,
+      p95: 0,
+      p99: 0,
+      mean_seconds: 0,
+      stddev_seconds: 0,
+      min_seconds: 0,
+      max_seconds: 0,
+    }
 
     return {
       percentiles: {
         p10: Number(stats.p10),
-        p25: Number(stats.p25), 
+        p25: Number(stats.p25),
         p50: Number(stats.p50),
         p75: Number(stats.p75),
         p90: Number(stats.p90),
         p95: Number(stats.p95),
         p99: Number(stats.p99),
       },
-      distribution: distributionResult.map(row => ({
+      distribution: distributionResult.map((row) => ({
         time_bucket: row.time_bucket,
         time_range: row.time_range,
         user_count: Number(row.user_count),
@@ -1812,7 +1931,7 @@ export class FunnelAnalyticsRepository {
         min_seconds: Number(stats.min_seconds),
         max_seconds: Number(stats.max_seconds),
       },
-    };
+    }
   }
 
   /**
@@ -1824,25 +1943,29 @@ export class FunnelAnalyticsRepository {
     workspaceId: bigint,
     funnelId: bigint,
     startDate: Date,
-    endDate: Date,
-  ): Promise<Array<{
-    step_order: number;
-    step_label: string;
-    avg_time_to_next_seconds: number;
-    median_time_to_next_seconds: number;
-    p90_time_to_next_seconds: number;
-    user_count: number;
-    abandonment_rate: number;
-  }>> {
-    const result = await this.prisma.$queryRaw<Array<{
-      step_order: number;
-      step_label: string;
-      avg_time_to_next_seconds: number;
-      median_time_to_next_seconds: number;
-      p90_time_to_next_seconds: number;
-      user_count: bigint;
-      abandonment_rate: number;
-    }>>`
+    endDate: Date
+  ): Promise<
+    Array<{
+      step_order: number
+      step_label: string
+      avg_time_to_next_seconds: number
+      median_time_to_next_seconds: number
+      p90_time_to_next_seconds: number
+      user_count: number
+      abandonment_rate: number
+    }>
+  > {
+    const result = await this.prisma.$queryRaw<
+      Array<{
+        step_order: number
+        step_label: string
+        avg_time_to_next_seconds: number
+        median_time_to_next_seconds: number
+        p90_time_to_next_seconds: number
+        user_count: bigint
+        abandonment_rate: number
+      }>
+    >`
       WITH step_transitions AS (
         SELECT 
           e1.anonymous_id,
@@ -1898,9 +2021,9 @@ export class FunnelAnalyticsRepository {
         END as abandonment_rate
       FROM step_stats
       ORDER BY step_order
-    `;
+    `
 
-    return result.map(row => ({
+    return result.map((row) => ({
       step_order: Number(row.step_order),
       step_label: row.step_label,
       avg_time_to_next_seconds: Number(row.avg_time_to_next_seconds),
@@ -1908,7 +2031,7 @@ export class FunnelAnalyticsRepository {
       p90_time_to_next_seconds: Number(row.p90_time_to_next_seconds),
       user_count: Number(row.user_count),
       abandonment_rate: Number(row.abandonment_rate),
-    }));
+    }))
   }
 
   /**
@@ -1921,26 +2044,30 @@ export class FunnelAnalyticsRepository {
     funnelId: bigint,
     startDate: Date,
     endDate: Date,
-    granularity: 'daily' | 'weekly' = 'daily',
-  ): Promise<Array<{
-    period: string;
-    date: string;
-    avg_conversion_time_seconds: number;
-    median_conversion_time_seconds: number;
-    conversion_count: number;
-    velocity_score: number;
-    trend_indicator: 'improving' | 'stable' | 'declining';
-  }>> {
-    const truncateFormat = granularity === 'daily' ? 'day' : 'week';
-    
-    const result = await this.prisma.$queryRaw<Array<{
-      period: string;
-      date: Date;
-      avg_conversion_time_seconds: number;
-      median_conversion_time_seconds: number;
-      conversion_count: bigint;
-      velocity_score: number;
-    }>>`
+    granularity: 'daily' | 'weekly' = 'daily'
+  ): Promise<
+    Array<{
+      period: string
+      date: string
+      avg_conversion_time_seconds: number
+      median_conversion_time_seconds: number
+      conversion_count: number
+      velocity_score: number
+      trend_indicator: 'improving' | 'stable' | 'declining'
+    }>
+  > {
+    const truncateFormat = granularity === 'daily' ? 'day' : 'week'
+
+    const result = await this.prisma.$queryRaw<
+      Array<{
+        period: string
+        date: Date
+        avg_conversion_time_seconds: number
+        median_conversion_time_seconds: number
+        conversion_count: bigint
+        velocity_score: number
+      }>
+    >`
       WITH funnel_conversions AS (
         SELECT 
           anonymous_id,
@@ -2000,19 +2127,20 @@ export class FunnelAnalyticsRepository {
         END as velocity_score
       FROM period_stats
       ORDER BY period_start
-    `;
+    `
 
     // Calculate trend indicators
     return result.map((row, index, array) => {
-      let trend_indicator: 'improving' | 'stable' | 'declining' = 'stable';
-      
+      let trend_indicator: 'improving' | 'stable' | 'declining' = 'stable'
+
       if (index > 0) {
-        const prevSpeed = array[index - 1].avg_conversion_time_seconds;
-        const currentSpeed = row.avg_conversion_time_seconds;
-        const changePercent = ((currentSpeed - prevSpeed) / prevSpeed) * 100;
-        
-        if (changePercent < -10) trend_indicator = 'improving'; // Getting faster
-        else if (changePercent > 10) trend_indicator = 'declining'; // Getting slower
+        const prevSpeed = array[index - 1].avg_conversion_time_seconds
+        const currentSpeed = row.avg_conversion_time_seconds
+        const changePercent = ((currentSpeed - prevSpeed) / prevSpeed) * 100
+
+        if (changePercent < -10)
+          trend_indicator = 'improving' // Getting faster
+        else if (changePercent > 10) trend_indicator = 'declining' // Getting slower
       }
 
       return {
@@ -2023,8 +2151,8 @@ export class FunnelAnalyticsRepository {
         conversion_count: Number(row.conversion_count),
         velocity_score: Number(row.velocity_score),
         trend_indicator,
-      };
-    });
+      }
+    })
   }
 
   /**
@@ -2036,25 +2164,29 @@ export class FunnelAnalyticsRepository {
     workspaceId: bigint,
     funnelId: bigint,
     startDate: Date,
-    endDate: Date,
-  ): Promise<Array<{
-    segment_name: string;
-    segment_value: string;
-    avg_conversion_time_seconds: number;
-    median_conversion_time_seconds: number;
-    p90_conversion_time_seconds: number;
-    conversion_count: number;
-    velocity_score: number;
-    performance_indicator: 'fast' | 'average' | 'slow';
-  }>> {
-    const result = await this.prisma.$queryRaw<Array<{
-      segment_name: string;
-      segment_value: string;
-      avg_conversion_time_seconds: number;
-      median_conversion_time_seconds: number;
-      p90_conversion_time_seconds: number;
-      conversion_count: bigint;
-    }>>`
+    endDate: Date
+  ): Promise<
+    Array<{
+      segment_name: string
+      segment_value: string
+      avg_conversion_time_seconds: number
+      median_conversion_time_seconds: number
+      p90_conversion_time_seconds: number
+      conversion_count: number
+      velocity_score: number
+      performance_indicator: 'fast' | 'average' | 'slow'
+    }>
+  > {
+    const result = await this.prisma.$queryRaw<
+      Array<{
+        segment_name: string
+        segment_value: string
+        avg_conversion_time_seconds: number
+        median_conversion_time_seconds: number
+        p90_conversion_time_seconds: number
+        conversion_count: bigint
+      }>
+    >`
       WITH funnel_conversions AS (
         SELECT 
           e.anonymous_id,
@@ -2139,24 +2271,32 @@ export class FunnelAnalyticsRepository {
       FROM segment_stats
       WHERE conversion_count >= 10  -- Only include segments with meaningful sample size
       ORDER BY segment_name, avg_conversion_time_seconds
-    `;
+    `
 
     // Calculate overall average for performance comparison
-    const overallAvg = result.length > 0 
-      ? result.reduce((sum, row) => sum + Number(row.avg_conversion_time_seconds), 0) / result.length
-      : 0;
+    const overallAvg =
+      result.length > 0
+        ? result.reduce((sum, row) => sum + Number(row.avg_conversion_time_seconds), 0) /
+          result.length
+        : 0
 
-    return result.map(row => {
-      const avgTime = Number(row.avg_conversion_time_seconds);
-      let performance_indicator: 'fast' | 'average' | 'slow' = 'average';
-      
-      if (avgTime < overallAvg * 0.8) performance_indicator = 'fast';
-      else if (avgTime > overallAvg * 1.2) performance_indicator = 'slow';
-      
-      const velocity_score = avgTime <= 300 ? 100 :
-                           avgTime <= 1800 ? 85 :
-                           avgTime <= 3600 ? 70 :
-                           avgTime <= 86400 ? 50 : 25;
+    return result.map((row) => {
+      const avgTime = Number(row.avg_conversion_time_seconds)
+      let performance_indicator: 'fast' | 'average' | 'slow' = 'average'
+
+      if (avgTime < overallAvg * 0.8) performance_indicator = 'fast'
+      else if (avgTime > overallAvg * 1.2) performance_indicator = 'slow'
+
+      const velocity_score =
+        avgTime <= 300
+          ? 100
+          : avgTime <= 1800
+            ? 85
+            : avgTime <= 3600
+              ? 70
+              : avgTime <= 86400
+                ? 50
+                : 25
 
       return {
         segment_name: row.segment_name,
@@ -2167,26 +2307,22 @@ export class FunnelAnalyticsRepository {
         conversion_count: Number(row.conversion_count),
         velocity_score,
         performance_indicator,
-      };
-    });
+      }
+    })
   }
 
   /**
    * Get live metrics for real-time dashboard
    */
-  async getLiveMetrics(
-    tenantId: string,
-    workspaceId: string,
-    funnelId: string,
-  ): Promise<any> {
+  async getLiveMetrics(tenantId: string, workspaceId: string, funnelId: string): Promise<any> {
     try {
       // Get current time boundaries
-      const now = new Date();
-      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-      const thirtyMinAgo = new Date(now.getTime() - 30 * 60 * 1000);
+      const now = new Date()
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+      const thirtyMinAgo = new Date(now.getTime() - 30 * 60 * 1000)
 
       // Query 1: Active sessions and basic metrics
-      const basicMetrics = await this.prisma.$queryRaw`
+      const basicMetrics = (await this.prisma.$queryRaw`
         WITH active_sessions AS (
           SELECT DISTINCT fus.anonymous_id
           FROM funnel_user_state fus
@@ -2222,10 +2358,10 @@ export class FunnelAnalyticsRepository {
             THEN ROUND((SELECT conversions_count FROM recent_conversions)::numeric / (SELECT entries_count FROM recent_entries)::numeric * 100, 2)
             ELSE 0 
           END as current_conversion_rate;
-      ` as any[];
+      `) as any[]
 
       // Query 2: Step distribution
-      const stepDistribution = await this.prisma.$queryRaw`
+      const stepDistribution = (await this.prisma.$queryRaw`
         SELECT 
           fus.current_step_index as step_order,
           COUNT(*) as current_users,
@@ -2238,10 +2374,10 @@ export class FunnelAnalyticsRepository {
           AND fus.last_activity_at >= ${thirtyMinAgo}
         GROUP BY fus.current_step_index
         ORDER BY fus.current_step_index;
-      ` as any[];
+      `) as any[]
 
       // Query 3: Real-time trends (last 30 minutes, per minute)
-      const trends = await this.prisma.$queryRaw`
+      const trends = (await this.prisma.$queryRaw`
         WITH minute_series AS (
           SELECT generate_series(
             date_trunc('minute', ${thirtyMinAgo}),
@@ -2285,21 +2421,24 @@ export class FunnelAnalyticsRepository {
         LEFT JOIN entries_per_minute epm ON ms.minute_bucket = epm.minute_bucket
         LEFT JOIN conversions_per_minute cpm ON ms.minute_bucket = cpm.minute_bucket
         ORDER BY ms.minute_bucket;
-      ` as any[];
+      `) as any[]
 
       return {
         basicMetrics: basicMetrics[0] || {
           active_sessions: 0,
           entries_last_hour: 0,
           conversions_last_hour: 0,
-          current_conversion_rate: 0
+          current_conversion_rate: 0,
         },
         stepDistribution,
-        trends
-      };
+        trends,
+      }
     } catch (error) {
-      this.logger.error('Error getting live metrics', error instanceof Error ? error : new Error(String(error)));
-      throw error;
+      this.logger.error(
+        'Error getting live metrics',
+        error instanceof Error ? error : new Error(String(error))
+      )
+      throw error
     }
   }
 
@@ -2311,11 +2450,11 @@ export class FunnelAnalyticsRepository {
     workspaceId: string,
     funnelId: string,
     userId?: string,
-    anonymousId?: string,
+    anonymousId?: string
   ): Promise<any> {
     try {
       if (!userId && !anonymousId) {
-        throw new Error('Either userId or anonymousId must be provided');
+        throw new Error('Either userId or anonymousId must be provided')
       }
 
       // Get user funnel state
@@ -2334,22 +2473,22 @@ export class FunnelAnalyticsRepository {
                 where: { state: 'PUBLISHED' },
                 include: {
                   steps: {
-                    orderBy: { orderIndex: 'asc' }
-                  }
+                    orderBy: { orderIndex: 'asc' },
+                  },
                 },
-                take: 1
-              }
-            }
-          }
-        }
-      });
+                take: 1,
+              },
+            },
+          },
+        },
+      })
 
       if (!userState) {
-        return null;
+        return null
       }
 
       // Get journey history from events
-      const journeyEvents = await this.prisma.$queryRaw`
+      const journeyEvents = (await this.prisma.$queryRaw`
         SELECT 
           e.event_name,
           e.timestamp,
@@ -2362,10 +2501,10 @@ export class FunnelAnalyticsRepository {
           AND e.anonymous_id = ${userState.anonymousId}
           AND e.timestamp >= ${userState.enteredAt}
         ORDER BY e.timestamp ASC;
-      ` as any[];
+      `) as any[]
 
       // Get step timing averages for comparison
-      const stepTimingAverages = await this.prisma.$queryRaw`
+      const stepTimingAverages = (await this.prisma.$queryRaw`
         SELECT 
           fus.current_step_index as step_order,
           AVG(EXTRACT(epoch FROM (fus.last_activity_at - fus.entered_at))) as avg_time_to_reach,
@@ -2377,35 +2516,34 @@ export class FunnelAnalyticsRepository {
           AND fus.current_step_index IS NOT NULL
         GROUP BY fus.current_step_index
         ORDER BY fus.current_step_index;
-      ` as any[];
+      `) as any[]
 
       return {
         userState,
         journeyEvents,
         stepTimingAverages,
-        funnelSteps: userState.funnel.versions[0]?.steps || []
-      };
+        funnelSteps: userState.funnel.versions[0]?.steps || [],
+      }
     } catch (error) {
-      this.logger.error('Error getting user progression', error instanceof Error ? error : new Error(String(error)));
-      throw error;
+      this.logger.error(
+        'Error getting user progression',
+        error instanceof Error ? error : new Error(String(error))
+      )
+      throw error
     }
   }
 
   /**
    * Detect conversion anomalies and bottlenecks for alerts
    */
-  async detectAnomalies(
-    tenantId: string,
-    workspaceId: string,
-    funnelId: string,
-  ): Promise<any[]> {
+  async detectAnomalies(tenantId: string, workspaceId: string, funnelId: string): Promise<any[]> {
     try {
-      const now = new Date();
-      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const now = new Date()
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
       // Detect conversion rate drops
-      const conversionRateAnomaly = await this.prisma.$queryRaw`
+      const conversionRateAnomaly = (await this.prisma.$queryRaw`
         WITH current_period AS (
           SELECT 
             COUNT(CASE WHEN fus.status = 'completed' THEN 1 END) as conversions,
@@ -2448,10 +2586,10 @@ export class FunnelAnalyticsRepository {
           cp.entries as current_entries,
           hp.entries as historical_entries
         FROM current_period cp, historical_period hp;
-      ` as any[];
+      `) as any[]
 
       // Detect step bottlenecks
-      const stepBottlenecks = await this.prisma.$queryRaw`
+      const stepBottlenecks = (await this.prisma.$queryRaw`
         SELECT 
           fus.current_step_index as step_order,
           COUNT(*) as users_stuck,
@@ -2466,15 +2604,15 @@ export class FunnelAnalyticsRepository {
         GROUP BY fus.current_step_index
         HAVING COUNT(*) >= 5 -- At least 5 users stuck
         ORDER BY COUNT(*) DESC;
-      ` as any[];
+      `) as any[]
 
-      return [
-        ...(conversionRateAnomaly[0] ? [conversionRateAnomaly[0]] : []),
-        ...stepBottlenecks
-      ];
+      return [...(conversionRateAnomaly[0] ? [conversionRateAnomaly[0]] : []), ...stepBottlenecks]
     } catch (error) {
-      this.logger.error('Error detecting anomalies', error instanceof Error ? error : new Error(String(error)));
-      throw error;
+      this.logger.error(
+        'Error detecting anomalies',
+        error instanceof Error ? error : new Error(String(error))
+      )
+      throw error
     }
   }
 
@@ -2486,16 +2624,18 @@ export class FunnelAnalyticsRepository {
     workspaceId: bigint,
     funnelId: bigint,
     startDate: string,
-    endDate: string,
-  ): Promise<{ stepMetrics: Array<{
-    stepOrder: number;
-    stepLabel: string;
-    totalEntries: number;
-    conversionRate: number;
-    avgTimeToComplete?: number;
-  }> }> {
+    endDate: string
+  ): Promise<{
+    stepMetrics: Array<{
+      stepOrder: number
+      stepLabel: string
+      totalEntries: number
+      conversionRate: number
+      avgTimeToComplete?: number
+    }>
+  }> {
     try {
-      const stepMetrics = await this.prisma.$queryRaw`
+      const stepMetrics = (await this.prisma.$queryRaw`
         WITH funnel_steps AS (
           SELECT 
             jsonb_array_elements(steps) -> 'order' as step_order,
@@ -2532,32 +2672,36 @@ export class FunnelAnalyticsRepository {
           COALESCE(avg_completion_time, 0) as avg_time_to_complete
         FROM step_data
         ORDER BY step_order;
-      ` as Array<{
-        step_order: number;
-        step_label: string;
-        total_entries: bigint;
-        conversion_rate: number;
-        avg_time_to_complete: number;
-      }>;
+      `) as Array<{
+        step_order: number
+        step_label: string
+        total_entries: bigint
+        conversion_rate: number
+        avg_time_to_complete: number
+      }>
 
       return {
-        stepMetrics: stepMetrics.map(step => ({
+        stepMetrics: stepMetrics.map((step) => ({
           stepOrder: step.step_order,
           stepLabel: step.step_label || `Step ${step.step_order}`,
           totalEntries: Number(step.total_entries),
           conversionRate: step.conversion_rate,
           avgTimeToComplete: step.avg_time_to_complete > 0 ? step.avg_time_to_complete : undefined,
-        }))
-      };
+        })),
+      }
     } catch (error) {
-      this.logger.error('Error getting step conversion metrics', error instanceof Error ? error : new Error(String(error)), {
-        tenantId: tenantId.toString(),
-        workspaceId: workspaceId.toString(),
-        funnelId: funnelId.toString(),
-        startDate,
-        endDate,
-      });
-      throw error;
+      this.logger.error(
+        'Error getting step conversion metrics',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          tenantId: tenantId.toString(),
+          workspaceId: workspaceId.toString(),
+          funnelId: funnelId.toString(),
+          startDate,
+          endDate,
+        }
+      )
+      throw error
     }
   }
 
@@ -2570,25 +2714,27 @@ export class FunnelAnalyticsRepository {
     funnelId: bigint,
     startDate: string,
     endDate: string,
-    maxPathLength: number = 10,
-  ): Promise<Array<{
-    user_id: string;
-    anonymous_id: string;
-    steps: Array<{
-      step_order: number;
-      step_type: string;
-      step_identifier: string;
-      step_label: string;
-      timestamp: string;
-      time_spent_seconds: number;
-      metadata?: Record<string, any>;
-    }>;
-    converted: boolean;
-    completion_time_seconds: number;
-    total_events: number;
-  }>> {
+    maxPathLength: number = 10
+  ): Promise<
+    Array<{
+      user_id: string
+      anonymous_id: string
+      steps: Array<{
+        step_order: number
+        step_type: string
+        step_identifier: string
+        step_label: string
+        timestamp: string
+        time_spent_seconds: number
+        metadata?: Record<string, any>
+      }>
+      converted: boolean
+      completion_time_seconds: number
+      total_events: number
+    }>
+  > {
     try {
-      const journeys = await this.prisma.$queryRaw`
+      const journeys = (await this.prisma.$queryRaw`
         WITH funnel_events AS (
           SELECT 
             COALESCE(e.lead_id, e.anonymous_id) as user_id,
@@ -2655,34 +2801,37 @@ export class FunnelAnalyticsRepository {
         FROM user_journeys
         ORDER BY total_events DESC, completion_time_seconds ASC
         LIMIT 1000; -- Limit for performance
-      ` as Array<{
-        user_id: string;
-        anonymous_id: string;
-        steps: any;
-        converted: boolean;
-        completion_time_seconds: number;
-        total_events: bigint;
-      }>;
+      `) as Array<{
+        user_id: string
+        anonymous_id: string
+        steps: any
+        converted: boolean
+        completion_time_seconds: number
+        total_events: bigint
+      }>
 
-      return journeys.map(journey => ({
+      return journeys.map((journey) => ({
         user_id: journey.user_id,
         anonymous_id: journey.anonymous_id,
         steps: Array.isArray(journey.steps) ? journey.steps : [],
         converted: journey.converted,
         completion_time_seconds: journey.completion_time_seconds,
         total_events: Number(journey.total_events),
-      }));
-
+      }))
     } catch (error) {
-      this.logger.error('Error getting user journeys', error instanceof Error ? error : new Error(String(error)), {
-        tenantId: tenantId.toString(),
-        workspaceId: workspaceId.toString(),
-        funnelId: funnelId.toString(),
-        startDate,
-        endDate,
-        maxPathLength,
-      });
-      throw error;
+      this.logger.error(
+        'Error getting user journeys',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          tenantId: tenantId.toString(),
+          workspaceId: workspaceId.toString(),
+          funnelId: funnelId.toString(),
+          startDate,
+          endDate,
+          maxPathLength,
+        }
+      )
+      throw error
     }
   }
 
@@ -2695,34 +2844,34 @@ export class FunnelAnalyticsRepository {
     funnelId: bigint,
     startDate: string,
     endDate: string,
-    lookbackWindowDays: number,
+    lookbackWindowDays: number
   ): Promise<{
     journeys: Array<{
-      user_id: string;
-      anonymous_id: string;
+      user_id: string
+      anonymous_id: string
       touchpoints: Array<{
-        touchpoint_type: string;
-        timestamp: string;
-        utm_source?: string;
-        utm_medium?: string;
-        utm_campaign?: string;
-        referrer_domain?: string;
-        device_type?: string;
-        page_url?: string;
-      }>;
-      converted: boolean;
-      conversion_timestamp: string;
-      journey_duration_seconds: number;
-    }>;
-    totalTouchpoints: number;
-    totalConversions: number;
-    touchpointTypes: string[];
+        touchpoint_type: string
+        timestamp: string
+        utm_source?: string
+        utm_medium?: string
+        utm_campaign?: string
+        referrer_domain?: string
+        device_type?: string
+        page_url?: string
+      }>
+      converted: boolean
+      conversion_timestamp: string
+      journey_duration_seconds: number
+    }>
+    totalTouchpoints: number
+    totalConversions: number
+    touchpointTypes: string[]
   }> {
     try {
-      const lookbackDate = new Date();
-      lookbackDate.setDate(lookbackDate.getDate() - lookbackWindowDays);
+      const lookbackDate = new Date()
+      lookbackDate.setDate(lookbackDate.getDate() - lookbackWindowDays)
 
-      const journeys = await this.prisma.$queryRaw`
+      const journeys = (await this.prisma.$queryRaw`
         WITH user_touchpoints AS (
           SELECT 
             COALESCE(e.lead_id, e.anonymous_id) as user_id,
@@ -2801,18 +2950,18 @@ export class FunnelAnalyticsRepository {
           AND first_touchpoint <= ${endDate}::timestamp
         ORDER BY converted DESC, total_touchpoints DESC
         LIMIT 5000; -- Limit for performance
-      ` as Array<{
-        user_id: string;
-        anonymous_id: string;
-        touchpoints: any;
-        converted: boolean;
-        conversion_timestamp: string;
-        journey_duration_seconds: number;
-        total_touchpoints: bigint;
-      }>;
+      `) as Array<{
+        user_id: string
+        anonymous_id: string
+        touchpoints: any
+        converted: boolean
+        conversion_timestamp: string
+        journey_duration_seconds: number
+        total_touchpoints: bigint
+      }>
 
       // Get aggregated stats
-      const stats = await this.prisma.$queryRaw`
+      const stats = (await this.prisma.$queryRaw`
         SELECT 
           COUNT(DISTINCT COALESCE(e.lead_id, e.anonymous_id)) as total_users,
           COUNT(*) as total_touchpoints,
@@ -2839,21 +2988,21 @@ export class FunnelAnalyticsRepository {
           AND e.workspace_id = ${workspaceId}
           AND e.timestamp >= ${startDate}::timestamp
           AND e.timestamp <= ${endDate}::timestamp;
-      ` as Array<{
-        total_users: bigint;
-        total_touchpoints: bigint;
-        total_conversions: bigint;
-        touchpoint_types: string[];
-      }>;
+      `) as Array<{
+        total_users: bigint
+        total_touchpoints: bigint
+        total_conversions: bigint
+        touchpoint_types: string[]
+      }>
 
-      const statsRow = stats[0] || { 
-        total_touchpoints: BigInt(0), 
-        total_conversions: BigInt(0), 
-        touchpoint_types: [] 
-      };
+      const statsRow = stats[0] || {
+        total_touchpoints: BigInt(0),
+        total_conversions: BigInt(0),
+        touchpoint_types: [],
+      }
 
       return {
-        journeys: journeys.map(journey => ({
+        journeys: journeys.map((journey) => ({
           user_id: journey.user_id,
           anonymous_id: journey.anonymous_id,
           touchpoints: Array.isArray(journey.touchpoints) ? journey.touchpoints : [],
@@ -2864,18 +3013,21 @@ export class FunnelAnalyticsRepository {
         totalTouchpoints: Number(statsRow.total_touchpoints),
         totalConversions: Number(statsRow.total_conversions),
         touchpointTypes: statsRow.touchpoint_types || [],
-      };
-
+      }
     } catch (error) {
-      this.logger.error('Error getting touchpoint journeys', error instanceof Error ? error : new Error(String(error)), {
-        tenantId: tenantId.toString(),
-        workspaceId: workspaceId.toString(),
-        funnelId: funnelId.toString(),
-        startDate,
-        endDate,
-        lookbackWindowDays,
-      });
-      throw error;
+      this.logger.error(
+        'Error getting touchpoint journeys',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          tenantId: tenantId.toString(),
+          workspaceId: workspaceId.toString(),
+          funnelId: funnelId.toString(),
+          startDate,
+          endDate,
+          lookbackWindowDays,
+        }
+      )
+      throw error
     }
   }
 
@@ -2884,14 +3036,17 @@ export class FunnelAnalyticsRepository {
    */
   async healthCheck(): Promise<{ status: 'healthy' | 'unhealthy'; details: string }> {
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
-      return { status: 'healthy', details: 'Database connection successful' };
+      await this.prisma.$queryRaw`SELECT 1`
+      return { status: 'healthy', details: 'Database connection successful' }
     } catch (error) {
-      this.logger.error('Analytics repository health check failed', error instanceof Error ? error : new Error(String(error)));
-      return { 
-        status: 'unhealthy', 
-        details: error instanceof Error ? error.message : 'Unknown error'
-      };
+      this.logger.error(
+        'Analytics repository health check failed',
+        error instanceof Error ? error : new Error(String(error))
+      )
+      return {
+        status: 'unhealthy',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }
     }
   }
 }

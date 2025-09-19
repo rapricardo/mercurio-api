@@ -1,6 +1,6 @@
-import { PartialType, ApiPropertyOptional } from '@nestjs/swagger';
-import { CreateWorkspaceDto } from './create-workspace.dto';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { PartialType, ApiPropertyOptional } from '@nestjs/swagger'
+import { CreateWorkspaceDto } from './create-workspace.dto'
+import { IsOptional, IsString, MaxLength } from 'class-validator'
 
 export class UpdateWorkspaceDto extends PartialType(CreateWorkspaceDto) {
   @ApiPropertyOptional({
@@ -11,7 +11,7 @@ export class UpdateWorkspaceDto extends PartialType(CreateWorkspaceDto) {
   @IsOptional()
   @IsString()
   @MaxLength(255, { message: 'Workspace name cannot exceed 255 characters' })
-  name?: string;
+  name?: string
 
   @ApiPropertyOptional({
     description: 'Workspace description',
@@ -21,7 +21,7 @@ export class UpdateWorkspaceDto extends PartialType(CreateWorkspaceDto) {
   @IsOptional()
   @IsString()
   @MaxLength(500, { message: 'Description cannot exceed 500 characters' })
-  description?: string;
+  description?: string
 
   @ApiPropertyOptional({
     description: 'Updated workspace-specific settings and configurations',
@@ -33,7 +33,7 @@ export class UpdateWorkspaceDto extends PartialType(CreateWorkspaceDto) {
     },
   })
   @IsOptional()
-  settings?: Record<string, any>;
+  settings?: Record<string, any>
 
   @ApiPropertyOptional({
     description: 'Updated environment type for the workspace',
@@ -41,7 +41,7 @@ export class UpdateWorkspaceDto extends PartialType(CreateWorkspaceDto) {
   })
   @IsOptional()
   @IsString()
-  environment?: string;
+  environment?: string
 
   @ApiPropertyOptional({
     description: 'Updated workspace-specific limits and quotas',
@@ -52,5 +52,5 @@ export class UpdateWorkspaceDto extends PartialType(CreateWorkspaceDto) {
     },
   })
   @IsOptional()
-  limits?: Record<string, any>;
+  limits?: Record<string, any>
 }

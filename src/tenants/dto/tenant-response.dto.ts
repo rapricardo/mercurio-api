@@ -1,30 +1,30 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 
 export class TenantResponseDto {
   @ApiProperty({
     description: 'Tenant ID',
     example: '1',
   })
-  id!: string;
+  id!: string
 
   @ApiProperty({
     description: 'Tenant name',
     example: 'Acme Corporation',
   })
-  name!: string;
+  name!: string
 
   @ApiProperty({
     description: 'Tenant status',
     example: 'active',
     enum: ['active', 'inactive', 'suspended'],
   })
-  status!: string;
+  status!: string
 
   @ApiProperty({
     description: 'Tenant creation timestamp',
     example: '2024-01-15T10:30:00.000Z',
   })
-  createdAt!: string;
+  createdAt!: string
 
   @ApiPropertyOptional({
     description: 'Tenant-specific settings and configurations',
@@ -34,13 +34,13 @@ export class TenantResponseDto {
       features: ['analytics', 'funnels'],
     },
   })
-  settings?: Record<string, any>;
+  settings?: Record<string, any>
 
   @ApiPropertyOptional({
     description: 'Subscription plan identifier',
     example: 'pro',
   })
-  plan?: string;
+  plan?: string
 
   @ApiPropertyOptional({
     description: 'Tenant-specific limits and quotas',
@@ -50,7 +50,7 @@ export class TenantResponseDto {
       maxEventsPerMonth: 1000000,
     },
   })
-  limits?: Record<string, any>;
+  limits?: Record<string, any>
 
   @ApiPropertyOptional({
     description: 'Tenant statistics and usage information',
@@ -62,11 +62,11 @@ export class TenantResponseDto {
     },
   })
   stats?: {
-    totalWorkspaces: number;
-    totalUsers: number;
-    totalEvents: number;
-    lastActivity?: string;
-  };
+    totalWorkspaces: number
+    totalUsers: number
+    totalEvents: number
+    lastActivity?: string
+  }
 }
 
 export class TenantListResponseDto {
@@ -74,7 +74,7 @@ export class TenantListResponseDto {
     description: 'Array of tenants',
     type: [TenantResponseDto],
   })
-  data!: TenantResponseDto[];
+  data!: TenantResponseDto[]
 
   @ApiProperty({
     description: 'Pagination information',
@@ -88,11 +88,11 @@ export class TenantListResponseDto {
     },
   })
   pagination!: {
-    total: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-  };
+    total: number
+    page: number
+    pageSize: number
+    totalPages: number
+    hasNextPage: boolean
+    hasPreviousPage: boolean
+  }
 }

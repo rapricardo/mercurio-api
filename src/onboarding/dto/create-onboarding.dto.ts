@@ -1,29 +1,29 @@
-import { IsString, IsNotEmpty, IsOptional, MaxLength, MinLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, MaxLength, MinLength } from 'class-validator'
 
 export class CreateOnboardingDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(2)
   @MaxLength(100)
-  tenantName!: string;
+  tenantName!: string
 
   @IsString()
   @IsNotEmpty()
   @MinLength(2)
   @MaxLength(100)
-  workspaceName!: string;
+  workspaceName!: string
 
   @IsString()
   @IsOptional()
   @MaxLength(500)
-  tenantDescription?: string;
+  tenantDescription?: string
 
   @IsString()
   @IsOptional()
   @MaxLength(500)
-  workspaceDescription?: string;
+  workspaceDescription?: string
 
   @IsString()
   @IsOptional()
-  workspaceEnvironment?: 'development' | 'staging' | 'production';
+  workspaceEnvironment?: 'development' | 'staging' | 'production'
 }

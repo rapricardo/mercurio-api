@@ -1,5 +1,5 @@
-import { IsOptional, IsString, IsArray, MaxLength } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, IsArray, MaxLength } from 'class-validator'
+import { ApiPropertyOptional } from '@nestjs/swagger'
 
 export class UpdateApiKeyDto {
   @ApiPropertyOptional({
@@ -10,7 +10,7 @@ export class UpdateApiKeyDto {
   @IsOptional()
   @IsString()
   @MaxLength(255, { message: 'API key name cannot exceed 255 characters' })
-  name?: string;
+  name?: string
 
   @ApiPropertyOptional({
     description: 'Update API key scopes/permissions',
@@ -19,5 +19,5 @@ export class UpdateApiKeyDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  scopes?: string[];
+  scopes?: string[]
 }

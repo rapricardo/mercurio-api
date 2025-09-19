@@ -1,18 +1,18 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, PayloadTooLargeException } from '@nestjs/common';
-import { EventsController } from '../controllers/events.controller';
-import { EventProcessorService } from '../services/event-processor.service';
-import { EnrichmentService } from '../services/enrichment.service';
-import { MercurioLogger } from '../../common/services/logger.service';
-import { HybridTenantContext } from '../../common/types/tenant-context.type';
-import { ApiKeyService } from '../../common/auth/api-key.service';
-import { TrackEventDto, BatchEventDto, IdentifyEventDto } from '../dto/track-event.dto';
+import { Test, TestingModule } from '@nestjs/testing'
+import { BadRequestException, PayloadTooLargeException } from '@nestjs/common'
+import { EventsController } from '../controllers/events.controller'
+import { EventProcessorService } from '../services/event-processor.service'
+import { EnrichmentService } from '../services/enrichment.service'
+import { MercurioLogger } from '../../common/services/logger.service'
+import { HybridTenantContext } from '../../common/types/tenant-context.type'
+import { ApiKeyService } from '../../common/auth/api-key.service'
+import { TrackEventDto, BatchEventDto, IdentifyEventDto } from '../dto/track-event.dto'
 
 describe('Payload Validation', () => {
-  let controller: EventsController;
-  let eventProcessor: EventProcessorService;
-  let enrichment: EnrichmentService;
-  let logger: MercurioLogger;
+  let controller: EventsController
+  let eventProcessor: EventProcessorService
+  let enrichment: EnrichmentService
+  let logger: MercurioLogger
 
   const mockTenantContext: HybridTenantContext = {
     tenantId: BigInt(1),
@@ -20,15 +20,15 @@ describe('Payload Validation', () => {
     apiKeyId: BigInt(1),
     scopes: ['write', 'events:write'],
     authType: 'api_key',
-  };
+  }
 
   const mockRequest = {
     headers: {
       'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
       'x-forwarded-for': '192.168.1.1',
     },
-    requestContext: { requestId: 'req_test_123' }
-  } as any;
+    requestContext: { requestId: 'req_test_123' },
+  } as any
 
   beforeEach(async () => {
     const mockEventProcessor = {
@@ -39,11 +39,11 @@ describe('Payload Validation', () => {
         errorCount: 0,
         results: [
           { success: true, eventId: '123' },
-          { success: true, eventId: '124' }
-        ]
+          { success: true, eventId: '124' },
+        ],
       }),
       processIdentifyEvent: jest.fn().mockResolvedValue({ success: true, leadId: '456' }),
-    };
+    }
 
     const mockEnrichment = {
       validateTimestamp: jest.fn().mockReturnValue({ isValid: true }),
@@ -55,19 +55,19 @@ describe('Payload Validation', () => {
         ingestedAt: new Date(),
         schemaVersion: '1.0.0',
       }),
-    };
+    }
 
     const mockLogger = {
       log: jest.fn(),
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
-    };
+    }
 
     const mockApiKeyService = {
       canWriteEvents: jest.fn().mockReturnValue(true),
       canReadEvents: jest.fn().mockReturnValue(true),
-    };
+    }
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EventsController],
@@ -77,13 +77,13 @@ describe('Payload Validation', () => {
         { provide: MercurioLogger, useValue: mockLogger },
         { provide: ApiKeyService, useValue: mockApiKeyService },
       ],
-    }).compile();
+    }).compile()
 
-    controller = module.get<EventsController>(EventsController);
-    eventProcessor = module.get<EventProcessorService>(EventProcessorService);
-    enrichment = module.get<EnrichmentService>(EnrichmentService);
-    logger = module.get<MercurioLogger>(MercurioLogger);
-  });
+    controller = module.get<EventsController>(EventsController)
+    eventProcessor = module.get<EventProcessorService>(EventProcessorService)
+    enrichment = module.get<EnrichmentService>(EnrichmentService)
+    logger = module.get<MercurioLogger>(MercurioLogger)
+  })
 
   describe('Payload Size Limits', () => {
     it('should reject track event exceeding 256KB payload size', async () => {
@@ -94,12 +94,12 @@ describe('Payload Validation', () => {
         properties: {
           large_data: 'x'.repeat(300 * 1024), // 300KB string
         },
-      };
+      }
 
       await expect(
         controller.trackEvent(largePayload, mockTenantContext, mockRequest)
-      ).rejects.toThrow(PayloadTooLargeException);
-    });
+      ).rejects.toThrow(PayloadTooLargeException)
+    })
 
     it('should reject batch event exceeding 256KB payload size', async () => {
       const largeEvent = {
@@ -109,16 +109,16 @@ describe('Payload Validation', () => {
         properties: {
           large_data: 'x'.repeat(200 * 1024), // 200KB per event
         },
-      };
+      }
 
       const largeBatch: BatchEventDto = {
         events: [largeEvent, largeEvent], // Total > 256KB
-      };
+      }
 
       await expect(
         controller.batchEvents(largeBatch, mockTenantContext, mockRequest)
-      ).rejects.toThrow(PayloadTooLargeException);
-    });
+      ).rejects.toThrow(PayloadTooLargeException)
+    })
 
     it('should reject identify event exceeding 256KB payload size', async () => {
       const largeIdentify: IdentifyEventDto = {
@@ -127,12 +127,12 @@ describe('Payload Validation', () => {
           email: 'test@example.com',
           large_data: 'x'.repeat(300 * 1024), // 300KB string
         },
-      };
+      }
 
       await expect(
         controller.identifyUser(largeIdentify, mockTenantContext, mockRequest)
-      ).rejects.toThrow(PayloadTooLargeException);
-    });
+      ).rejects.toThrow(PayloadTooLargeException)
+    })
 
     it('should accept payloads within 256KB limit', async () => {
       const validPayload: TrackEventDto = {
@@ -142,59 +142,63 @@ describe('Payload Validation', () => {
         properties: {
           data: 'x'.repeat(100 * 1024), // 100KB string
         },
-      };
+      }
 
-      const result = await controller.trackEvent(validPayload, mockTenantContext, mockRequest);
-      expect(result.accepted).toBe(true);
-    });
-  });
+      const result = await controller.trackEvent(validPayload, mockTenantContext, mockRequest)
+      expect(result.accepted).toBe(true)
+    })
+  })
 
   describe('Batch Size Limits', () => {
     it('should reject batches exceeding 50 events', async () => {
-      const events = Array(51).fill(null).map((_, index) => ({
-        event_name: 'test_event',
-        anonymous_id: `a_${index}`,
-        timestamp: new Date().toISOString(),
-      }));
+      const events = Array(51)
+        .fill(null)
+        .map((_, index) => ({
+          event_name: 'test_event',
+          anonymous_id: `a_${index}`,
+          timestamp: new Date().toISOString(),
+        }))
 
-      const largeBatch: BatchEventDto = { events };
+      const largeBatch: BatchEventDto = { events }
 
       await expect(
         controller.batchEvents(largeBatch, mockTenantContext, mockRequest)
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestException)
 
       // Verify the error details
       try {
-        await controller.batchEvents(largeBatch, mockTenantContext, mockRequest);
+        await controller.batchEvents(largeBatch, mockTenantContext, mockRequest)
       } catch (error: any) {
-        expect(error.response.error.code).toBe('batch_too_large');
-        expect(error.response.error.details.batchSize).toBe(51);
-        expect(error.response.error.details.maxBatchSize).toBe(50);
+        expect(error.response.error.code).toBe('batch_too_large')
+        expect(error.response.error.details.batchSize).toBe(51)
+        expect(error.response.error.details.maxBatchSize).toBe(50)
       }
-    });
+    })
 
     it('should accept batches within 50 event limit', async () => {
-      const events = Array(50).fill(null).map((_, index) => ({
-        event_name: 'test_event',
-        anonymous_id: `a_${index}`,
-        timestamp: new Date().toISOString(),
-      }));
+      const events = Array(50)
+        .fill(null)
+        .map((_, index) => ({
+          event_name: 'test_event',
+          anonymous_id: `a_${index}`,
+          timestamp: new Date().toISOString(),
+        }))
 
-      const validBatch: BatchEventDto = { events };
+      const validBatch: BatchEventDto = { events }
 
-      const result = await controller.batchEvents(validBatch, mockTenantContext, mockRequest);
-      expect(result.total).toBe(50);
-      expect(result.accepted).toBe(50);
-    });
+      const result = await controller.batchEvents(validBatch, mockTenantContext, mockRequest)
+      expect(result.total).toBe(50)
+      expect(result.accepted).toBe(50)
+    })
 
     it('should handle empty batch', async () => {
-      const emptyBatch: BatchEventDto = { events: [] };
+      const emptyBatch: BatchEventDto = { events: [] }
 
-      const result = await controller.batchEvents(emptyBatch, mockTenantContext, mockRequest);
-      expect(result.total).toBe(0);
-      expect(result.accepted).toBe(0);
-    });
-  });
+      const result = await controller.batchEvents(emptyBatch, mockTenantContext, mockRequest)
+      expect(result.total).toBe(0)
+      expect(result.accepted).toBe(0)
+    })
+  })
 
   describe('Schema Version Handling', () => {
     it('should extract schema version from header', () => {
@@ -204,26 +208,34 @@ describe('Payload Validation', () => {
           ...mockRequest.headers,
           'x-event-schema-version': '1.2.0',
         },
-      };
+      }
 
-      controller.trackEvent({
-        event_name: 'test',
-        anonymous_id: 'a_123',
-        timestamp: new Date().toISOString(),
-      }, mockTenantContext, requestWithVersion);
+      controller.trackEvent(
+        {
+          event_name: 'test',
+          anonymous_id: 'a_123',
+          timestamp: new Date().toISOString(),
+        },
+        mockTenantContext,
+        requestWithVersion
+      )
 
-      expect(enrichment.enrichEvent).toHaveBeenCalledWith(requestWithVersion);
-    });
+      expect(enrichment.enrichEvent).toHaveBeenCalledWith(requestWithVersion)
+    })
 
     it('should handle missing schema version header', () => {
-      controller.trackEvent({
-        event_name: 'test',
-        anonymous_id: 'a_123',
-        timestamp: new Date().toISOString(),
-      }, mockTenantContext, mockRequest);
+      controller.trackEvent(
+        {
+          event_name: 'test',
+          anonymous_id: 'a_123',
+          timestamp: new Date().toISOString(),
+        },
+        mockTenantContext,
+        mockRequest
+      )
 
-      expect(enrichment.enrichEvent).toHaveBeenCalledWith(mockRequest);
-    });
+      expect(enrichment.enrichEvent).toHaveBeenCalledWith(mockRequest)
+    })
 
     it('should log warning for invalid schema version format', () => {
       const requestWithInvalidVersion = {
@@ -232,88 +244,92 @@ describe('Payload Validation', () => {
           ...mockRequest.headers,
           'x-event-schema-version': 'invalid-version',
         },
-      };
+      }
 
       // Mock enrichment to simulate invalid version handling
-      (enrichment.enrichEvent as jest.Mock).mockReturnValue({
+      ;(enrichment.enrichEvent as jest.Mock).mockReturnValue({
         ...enrichment.enrichEvent({} as any),
         schemaVersion: '1.0.0', // Default fallback
-      });
+      })
 
-      controller.trackEvent({
-        event_name: 'test',
-        anonymous_id: 'a_123',
-        timestamp: new Date().toISOString(),
-      }, mockTenantContext, requestWithInvalidVersion);
+      controller.trackEvent(
+        {
+          event_name: 'test',
+          anonymous_id: 'a_123',
+          timestamp: new Date().toISOString(),
+        },
+        mockTenantContext,
+        requestWithInvalidVersion
+      )
 
-      expect(enrichment.enrichEvent).toHaveBeenCalledWith(requestWithInvalidVersion);
-    });
-  });
+      expect(enrichment.enrichEvent).toHaveBeenCalledWith(requestWithInvalidVersion)
+    })
+  })
 
   describe('Timestamp Validation', () => {
     it('should reject events with timestamps too far in the past', async () => {
-      const pastTimestamp = new Date(Date.now() - 10 * 60 * 1000).toISOString(); // 10 minutes ago
-      
-      (enrichment.validateTimestamp as jest.Mock).mockReturnValue({
+      const pastTimestamp = new Date(Date.now() - 10 * 60 * 1000).toISOString() // 10 minutes ago
+
+      ;(enrichment.validateTimestamp as jest.Mock).mockReturnValue({
         isValid: false,
         error: 'Event timestamp is too far in the past (max 5 minutes)',
-      });
+      })
 
       const pastEvent: TrackEventDto = {
         event_name: 'past_event',
         anonymous_id: 'a_123',
         timestamp: pastTimestamp,
-      };
+      }
 
       await expect(
         controller.trackEvent(pastEvent, mockTenantContext, mockRequest)
-      ).rejects.toThrow(BadRequestException);
-    });
+      ).rejects.toThrow(BadRequestException)
+    })
 
     it('should reject events with timestamps too far in the future', async () => {
-      const futureTimestamp = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes from now
-      
-      (enrichment.validateTimestamp as jest.Mock).mockReturnValue({
+      const futureTimestamp = new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 minutes from now
+
+      ;(enrichment.validateTimestamp as jest.Mock).mockReturnValue({
         isValid: false,
         error: 'Event timestamp is too far in the future (max 5 minutes)',
-      });
+      })
 
       const futureEvent: TrackEventDto = {
         event_name: 'future_event',
         anonymous_id: 'a_123',
         timestamp: futureTimestamp,
-      };
+      }
 
       await expect(
         controller.trackEvent(futureEvent, mockTenantContext, mockRequest)
-      ).rejects.toThrow(BadRequestException);
-    });
+      ).rejects.toThrow(BadRequestException)
+    })
 
     it('should accept events with valid timestamps', async () => {
-      const validTimestamp = new Date().toISOString();
-      
-      (enrichment.validateTimestamp as jest.Mock).mockReturnValue({ isValid: true });
+      const validTimestamp = new Date().toISOString()
+
+      ;(enrichment.validateTimestamp as jest.Mock).mockReturnValue({ isValid: true })
 
       const validEvent: TrackEventDto = {
         event_name: 'valid_event',
         anonymous_id: 'a_123',
         timestamp: validTimestamp,
-      };
+      }
 
-      const result = await controller.trackEvent(validEvent, mockTenantContext, mockRequest);
-      expect(result.accepted).toBe(true);
-    });
+      const result = await controller.trackEvent(validEvent, mockTenantContext, mockRequest)
+      expect(result.accepted).toBe(true)
+    })
 
     it('should validate all timestamps in batch', async () => {
-      const validTimestamp = new Date().toISOString();
-      const invalidTimestamp = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const validTimestamp = new Date().toISOString()
+      const invalidTimestamp = new Date(Date.now() - 10 * 60 * 1000).toISOString()
 
-      (enrichment.validateTimestamp as jest.Mock)
+      ;(enrichment.validateTimestamp as jest.Mock)
         .mockReturnValueOnce({ isValid: true })
         .mockReturnValueOnce({
           isValid: false,
           error: 'Event timestamp is too far in the past (max 5 minutes)',
-        });
+        })
 
       const batchWithInvalidTimestamp: BatchEventDto = {
         events: [
@@ -328,38 +344,40 @@ describe('Payload Validation', () => {
             timestamp: invalidTimestamp,
           },
         ],
-      };
+      }
 
       await expect(
         controller.batchEvents(batchWithInvalidTimestamp, mockTenantContext, mockRequest)
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestException)
 
       // Verify error contains timestamp validation details
       try {
-        await controller.batchEvents(batchWithInvalidTimestamp, mockTenantContext, mockRequest);
+        await controller.batchEvents(batchWithInvalidTimestamp, mockTenantContext, mockRequest)
       } catch (error: any) {
-        expect(error.response.error.code).toBe('invalid_timestamps');
-        expect(error.response.error.details.errors).toContain('Event 1: Event timestamp is too far in the past (max 5 minutes)');
+        expect(error.response.error.code).toBe('invalid_timestamps')
+        expect(error.response.error.details.errors).toContain(
+          'Event 1: Event timestamp is too far in the past (max 5 minutes)'
+        )
       }
-    });
-  });
+    })
+  })
 
   describe('Identify Validation', () => {
     it('should reject identify without user_id or traits', async () => {
       const invalidIdentify: IdentifyEventDto = {
         anonymous_id: 'a_123',
-      };
+      }
 
       await expect(
         controller.identifyUser(invalidIdentify, mockTenantContext, mockRequest)
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestException)
 
       try {
-        await controller.identifyUser(invalidIdentify, mockTenantContext, mockRequest);
+        await controller.identifyUser(invalidIdentify, mockTenantContext, mockRequest)
       } catch (error: any) {
-        expect(error.response.error.code).toBe('missing_identification');
+        expect(error.response.error.code).toBe('missing_identification')
       }
-    });
+    })
 
     it('should reject identify with invalid email format', async () => {
       const invalidEmail: IdentifyEventDto = {
@@ -368,19 +386,19 @@ describe('Payload Validation', () => {
           email: 'not-an-email',
           name: 'John Doe',
         },
-      };
+      }
 
       await expect(
         controller.identifyUser(invalidEmail, mockTenantContext, mockRequest)
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestException)
 
       try {
-        await controller.identifyUser(invalidEmail, mockTenantContext, mockRequest);
+        await controller.identifyUser(invalidEmail, mockTenantContext, mockRequest)
       } catch (error: any) {
-        expect(error.response.error.code).toBe('invalid_email');
-        expect(error.response.error.details.email).toBe('not-an-email');
+        expect(error.response.error.code).toBe('invalid_email')
+        expect(error.response.error.details.email).toBe('not-an-email')
       }
-    });
+    })
 
     it('should accept identify with valid email', async () => {
       const validIdentify: IdentifyEventDto = {
@@ -389,41 +407,41 @@ describe('Payload Validation', () => {
           email: 'user@example.com',
           name: 'John Doe',
         },
-      };
+      }
 
-      const result = await controller.identifyUser(validIdentify, mockTenantContext, mockRequest);
-      expect(result.accepted).toBe(true);
-    });
+      const result = await controller.identifyUser(validIdentify, mockTenantContext, mockRequest)
+      expect(result.accepted).toBe(true)
+    })
 
     it('should accept identify with user_id only', async () => {
       const validIdentify: IdentifyEventDto = {
         anonymous_id: 'a_123',
         user_id: 'user_456',
-      };
+      }
 
-      const result = await controller.identifyUser(validIdentify, mockTenantContext, mockRequest);
-      expect(result.accepted).toBe(true);
-    });
+      const result = await controller.identifyUser(validIdentify, mockTenantContext, mockRequest)
+      expect(result.accepted).toBe(true)
+    })
 
     it('should validate timestamp in identify if provided', async () => {
-      const invalidTimestamp = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-      
-      (enrichment.validateTimestamp as jest.Mock).mockReturnValue({
+      const invalidTimestamp = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+
+      ;(enrichment.validateTimestamp as jest.Mock).mockReturnValue({
         isValid: false,
         error: 'Event timestamp is too far in the past (max 5 minutes)',
-      });
+      })
 
       const identifyWithInvalidTimestamp: IdentifyEventDto = {
         anonymous_id: 'a_123',
         user_id: 'user_456',
         timestamp: invalidTimestamp,
-      };
+      }
 
       await expect(
         controller.identifyUser(identifyWithInvalidTimestamp, mockTenantContext, mockRequest)
-      ).rejects.toThrow(BadRequestException);
-    });
-  });
+      ).rejects.toThrow(BadRequestException)
+    })
+  })
 
   describe('Device and Geo Fields', () => {
     it('should accept events with client-provided device data', async () => {
@@ -437,18 +455,18 @@ describe('Payload Validation', () => {
           version: '15.0',
           screen_width: 375,
           screen_height: 812,
-          app_version: '1.2.3'
+          app_version: '1.2.3',
         },
-      };
+      }
 
-      const result = await controller.trackEvent(eventWithDevice, mockTenantContext, mockRequest);
-      expect(result.accepted).toBe(true);
+      const result = await controller.trackEvent(eventWithDevice, mockTenantContext, mockRequest)
+      expect(result.accepted).toBe(true)
       expect(eventProcessor.processTrackEvent).toHaveBeenCalledWith(
         eventWithDevice,
         mockTenantContext,
         expect.any(Object)
-      );
-    });
+      )
+    })
 
     it('should accept events with client-provided geo data', async () => {
       const eventWithGeo: TrackEventDto = {
@@ -462,18 +480,18 @@ describe('Payload Validation', () => {
           latitude: 37.7749,
           longitude: -122.4194,
           accuracy: 5,
-          source: 'gps'
+          source: 'gps',
         },
-      };
+      }
 
-      const result = await controller.trackEvent(eventWithGeo, mockTenantContext, mockRequest);
-      expect(result.accepted).toBe(true);
+      const result = await controller.trackEvent(eventWithGeo, mockTenantContext, mockRequest)
+      expect(result.accepted).toBe(true)
       expect(eventProcessor.processTrackEvent).toHaveBeenCalledWith(
         eventWithGeo,
         mockTenantContext,
         expect.any(Object)
-      );
-    });
+      )
+    })
 
     it('should accept events with both device and geo data', async () => {
       const eventWithBoth: TrackEventDto = {
@@ -484,23 +502,23 @@ describe('Payload Validation', () => {
           type: 'desktop',
           os: 'macOS',
           browser: 'Chrome',
-          screen_resolution: '2560x1440'
+          screen_resolution: '2560x1440',
         },
         geo: {
           country: 'BR',
           region: 'SP',
           city: 'São Paulo',
-          timezone: 'America/Sao_Paulo'
+          timezone: 'America/Sao_Paulo',
         },
         properties: {
           page_category: 'analytics',
-          user_segment: 'power_user'
-        }
-      };
+          user_segment: 'power_user',
+        },
+      }
 
-      const result = await controller.trackEvent(eventWithBoth, mockTenantContext, mockRequest);
-      expect(result.accepted).toBe(true);
-    });
+      const result = await controller.trackEvent(eventWithBoth, mockTenantContext, mockRequest)
+      expect(result.accepted).toBe(true)
+    })
 
     it('should accept events without device or geo data (backward compatibility)', async () => {
       const basicEvent: TrackEventDto = {
@@ -509,13 +527,13 @@ describe('Payload Validation', () => {
         timestamp: new Date().toISOString(),
         properties: {
           action: 'click',
-          element: 'button'
-        }
-      };
+          element: 'button',
+        },
+      }
 
-      const result = await controller.trackEvent(basicEvent, mockTenantContext, mockRequest);
-      expect(result.accepted).toBe(true);
-    });
+      const result = await controller.trackEvent(basicEvent, mockTenantContext, mockRequest)
+      expect(result.accepted).toBe(true)
+    })
 
     it('should validate device data is an object', async () => {
       const invalidDeviceEvent = {
@@ -523,12 +541,12 @@ describe('Payload Validation', () => {
         anonymous_id: 'a_123',
         timestamp: new Date().toISOString(),
         device: 'invalid_string', // Should be object
-      };
+      }
 
       await expect(
         controller.trackEvent(invalidDeviceEvent as any, mockTenantContext, mockRequest)
-      ).rejects.toThrow();
-    });
+      ).rejects.toThrow()
+    })
 
     it('should validate geo data is an object', async () => {
       const invalidGeoEvent = {
@@ -536,13 +554,13 @@ describe('Payload Validation', () => {
         anonymous_id: 'a_123',
         timestamp: new Date().toISOString(),
         geo: 'invalid_string', // Should be object
-      };
+      }
 
       await expect(
         controller.trackEvent(invalidGeoEvent as any, mockTenantContext, mockRequest)
-      ).rejects.toThrow();
-    });
-  });
+      ).rejects.toThrow()
+    })
+  })
 
   describe('Error Response Format', () => {
     it('should return structured error for payload too large', async () => {
@@ -551,22 +569,22 @@ describe('Payload Validation', () => {
         anonymous_id: 'a_123',
         timestamp: new Date().toISOString(),
         properties: { data: 'x'.repeat(300 * 1024) },
-      };
+      }
 
       try {
-        await controller.trackEvent(largePayload, mockTenantContext, mockRequest);
+        await controller.trackEvent(largePayload, mockTenantContext, mockRequest)
       } catch (error: any) {
-        expect(error).toBeInstanceOf(PayloadTooLargeException);
-        expect(error.response.error).toHaveProperty('code', 'payload_too_large');
-        expect(error.response.error).toHaveProperty('message');
-        expect(error.response.error).toHaveProperty('details');
-        expect(error.response.error.details).toHaveProperty('payloadSize');
-        expect(error.response.error.details).toHaveProperty('maxSize', 256 * 1024);
+        expect(error).toBeInstanceOf(PayloadTooLargeException)
+        expect(error.response.error).toHaveProperty('code', 'payload_too_large')
+        expect(error.response.error).toHaveProperty('message')
+        expect(error.response.error).toHaveProperty('details')
+        expect(error.response.error.details).toHaveProperty('payloadSize')
+        expect(error.response.error.details).toHaveProperty('maxSize', 256 * 1024)
       }
-    });
+    })
 
     it('should return structured error for processing failure', async () => {
-      (eventProcessor.processTrackEvent as jest.Mock).mockResolvedValue({
+      ;(eventProcessor.processTrackEvent as jest.Mock).mockResolvedValue({
         success: false,
         errors: [
           {
@@ -575,22 +593,22 @@ describe('Payload Validation', () => {
             value: 'invalid-id',
           },
         ],
-      });
+      })
 
       const invalidEvent: TrackEventDto = {
         event_name: 'test_event',
         anonymous_id: 'invalid-id',
         timestamp: new Date().toISOString(),
-      };
+      }
 
       try {
-        await controller.trackEvent(invalidEvent, mockTenantContext, mockRequest);
+        await controller.trackEvent(invalidEvent, mockTenantContext, mockRequest)
       } catch (error: any) {
-        expect(error).toBeInstanceOf(BadRequestException);
-        expect(error.response.error.code).toBe('processing_failed');
-        expect(error.response.error.details.errors).toHaveLength(1);
-        expect(error.response.error.details.errors[0].field).toBe('anonymous_id');
+        expect(error).toBeInstanceOf(BadRequestException)
+        expect(error.response.error.code).toBe('processing_failed')
+        expect(error.response.error.details.errors).toHaveLength(1)
+        expect(error.response.error.details.errors[0].field).toBe('anonymous_id')
       }
-    });
-  });
-});
+    })
+  })
+})
