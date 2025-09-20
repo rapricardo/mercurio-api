@@ -2,15 +2,9 @@ import {
   IsString,
   IsOptional,
   IsInt,
-  IsArray,
-  ValidateNested,
   IsEnum,
-  IsObject,
-  IsNotEmpty,
   Min,
   Max,
-  ArrayMinSize,
-  ArrayMaxSize,
 } from 'class-validator'
 import { Type, Transform } from 'class-transformer'
 
@@ -65,16 +59,42 @@ export interface UpdateFunnelRequestDto {
 }
 
 // List funnels query DTO
-export interface ListFunnelsQueryDto {
+export class ListFunnelsQueryDto {
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Transform(({ value }) => parseInt(value, 10))
   page?: number
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @Transform(({ value }) => parseInt(value, 10))
   limit?: number
+
+  @IsOptional()
+  @IsString()
   search?: string
+
+  @IsOptional()
+  @IsEnum(FunnelVersionState)
   state?: FunnelVersionState
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
   include_archived?: boolean
 }
 
 // Publish funnel request DTO
-export interface PublishFunnelRequestDto {
+export class PublishFunnelRequestDto {
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
   window_days?: number
+
+  @IsOptional()
+  @IsString()
   notes?: string
 }
